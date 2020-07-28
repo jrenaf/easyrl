@@ -15,12 +15,16 @@ from easyrl.utils.common import save_traj
 from easyrl.utils.gae import cal_gae
 from easyrl.utils.rl_logger import TensorboardLogger
 from easyrl.utils.torch_util import EpisodeDataset
+from easyrl.utils.torch_util import torch_to_np
 
 
 class PPOEngine(BasicEngine):
     def __init__(self, agent, runner):
         super().__init__(agent=agent,
                          runner=runner)
+        self.cur_step = 0
+        self._best_eval_ret = -np.inf
+        self._eval_is_best = False
         if ppo_cfg.test or ppo_cfg.resume:
             self.cur_step = self.agent.load_model(step=ppo_cfg.resume_step)
         else:
@@ -36,7 +40,7 @@ class PPOEngine(BasicEngine):
 
     def train(self):
         for iter_t in count():
-            traj, rollout_time = self.rollout_once(sample=True,
+            traj, rollout_time = self.rollout_once(sample=ppo_cfg.sample_action,
                                                    time_steps=ppo_cfg.episode_steps)
             train_log_info = self.train_once(traj)
             if iter_t % ppo_cfg.eval_interval == 0:
@@ -179,6 +183,14 @@ class PPOEngine(BasicEngine):
             log_info['rollout_action/' + sk] = sv
         log_info['optim_time'] = t1 - self.optim_stime
         log_info['rollout_steps_per_iter'] = traj.total_steps
+
+        # log infos
+        for key in traj.infos[0][0].keys():
+            info_list = [tuple([info[key] for info in infos]) for infos in traj.infos]
+            info_stats = get_list_stats(info_list)
+            for sk, sv in info_stats.items():
+                log_info['rollout_{}.'.format(key) + sk] = sv
+
         ep_returns = list(chain(*traj.episode_returns))
         for epr in ep_returns:
             self.train_ep_return.append(epr)
@@ -189,4 +201,6 @@ class PPOEngine(BasicEngine):
         train_log_info = dict()
         for key, val in log_info.items():
             train_log_info['train/' + key] = val
+        # histogram_log = {'histogram': {'rollout_action': traj.actions}}
+        # self.tf_logger.save_dict(histogram_log, step=self.cur_step)
         return train_log_info
