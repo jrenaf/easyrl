@@ -42,7 +42,7 @@ class PPOAgentHybrid(PPOAgent):
         entropy_cont = action_entropy(act_dist_cont, log_prob_cont)
         #print("cont:", torch_to_np(log_prob_cont).reshape(-1, 1))
         log_prob = log_prob_cont + torch.sum(log_prob_disc, axis=1)
-        print(log_prob_cont.shape, log_prob_disc.shape)
+        #print(log_prob_cont.shape, log_prob_disc.shape)
         entropy = entropy_cont + torch.sum(entropy_disc, axis=1)
 
         action_info = dict(
