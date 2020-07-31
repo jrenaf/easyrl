@@ -23,8 +23,9 @@ from easyrl.utils.torch_util import torch_to_np
 
 
 class PPOAgentHybrid(PPOAgent):
-    def __init__(self, actor, critic, same_body=False):
+    def __init__(self, actor, critic, same_body=False, dim_cont=4):
         super().__init__(actor, critic, same_body)
+        self.dim_cont = dim_cont
         
     @torch.no_grad()
     def get_action(self, ob, sample=True, *args, **kwargs):
@@ -75,8 +76,8 @@ class PPOAgentHybrid(PPOAgent):
         old_val = data['val']
 
         act_dist_cont, act_dist_disc, val = self.get_act_val(ob)
-        action_cont = action[:, 0:4]
-        action_discrete = action[:, 4:]
+        action_cont = action[:, :self.dim_cont]
+        action_discrete = action[:, self.dim_cont:]
         log_prob_disc = action_log_prob(action_discrete, act_dist_disc)
         log_prob_cont = action_log_prob(action_cont, act_dist_cont)
         entropy_disc = action_entropy(act_dist_disc, log_prob_disc)
