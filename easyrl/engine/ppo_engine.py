@@ -186,7 +186,7 @@ class PPOEngine(BasicEngine):
 
         # log infos
         for key in traj.infos[0][0].keys():
-            info_list = [tuple([info[key] for info in infos]) for infos in traj.infos]
+            info_list = [tuple([info.get(key, default=0) for info in infos]) for infos in traj.infos]
             info_stats = get_list_stats(info_list)
             for sk, sv in info_stats.items():
                 log_info['rollout_{}.'.format(key) + sk] = sv
