@@ -9,11 +9,13 @@ import numpy as np
 
 @dataclass
 class StepData:
+    ob_raw: Any = None
     ob: Any = None
     state: Any = None
     action: Any = None
     # store action infomation such as log probability, entropy
     action_info: Any = None
+    next_ob_raw: Any = None
     next_ob: Any = None
     next_state: Any = None
     reward: Any = None
@@ -26,8 +28,10 @@ class StepData:
         then store them into ob and state separately
         """
         if isinstance(self.ob, dict):
+            self.ob_raw = self.ob
             self.ob, self.state = self.dict_ob_state(self.ob)
         if isinstance(self.next_ob, dict):
+            self.next_ob_raw = self.next_ob
             self.next_ob, self.next_state = self.dict_ob_state(self.next_ob)
 
     def dict_ob_state(self, ob):

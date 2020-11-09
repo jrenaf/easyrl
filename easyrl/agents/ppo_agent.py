@@ -109,7 +109,10 @@ class PPOAgent(BaseAgent):
     @torch.no_grad()
     def get_val(self, ob, *args, **kwargs):
         self.eval_mode()
-        ob = torch_float(ob, device=ppo_cfg.device)
+        if type(ob) is dict:
+            ob = {key: torch_float(ob[key], device=ppo_cfg.device) for key in ob}
+        else:
+            ob = torch_float(ob, device=ppo_cfg.device)
         val, body_out = self.critic(x=ob)
         val = val.squeeze(-1)
         return val

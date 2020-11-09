@@ -148,6 +148,7 @@ class PPOEngine(BasicEngine):
             adv = (adv - np.mean(adv)) / (np.std(adv) + 1e-8)
         data = dict(
             ob=traj.obs,
+            state=traj.states,
             action=traj.actions,
             ret=ret,
             adv=adv,

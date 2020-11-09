@@ -30,7 +30,7 @@ class PPOAgentHybrid(PPOAgent):
     @torch.no_grad()
     def get_action(self, ob, sample=True, *args, **kwargs):
         self.eval_mode()
-        t_ob = torch_float(ob, device=ppo_cfg.device)
+        t_ob = {key: torch_float(ob[key], device=ppo_cfg.device) for key in ob}
         act_dist_cont, act_dist_disc, val = self.get_act_val(t_ob)
         action_cont = action_from_dist(act_dist_cont,
                                   sample=sample)
@@ -56,7 +56,10 @@ class PPOAgentHybrid(PPOAgent):
         return action, action_info
 
     def get_act_val(self, ob, *args, **kwargs):
-        ob = torch_float(ob, device=ppo_cfg.device)
+        if type(ob) is dict:
+            ob = {key: torch_float(ob[key], device=ppo_cfg.device) for key in ob}
+        else:
+            ob = torch_float(ob, device=ppo_cfg.device)
         act_dist_cont, act_dist_disc, body_out = self.actor(ob)
         if self.same_body:
             val, body_out = self.critic(body_x=body_out)
@@ -69,13 +72,14 @@ class PPOAgentHybrid(PPOAgent):
         for key, val in data.items():
             data[key] = torch_float(val, device=ppo_cfg.device)
         ob = data['ob']
+        state = data['state']
         action = data['action']
         ret = data['ret']
         adv = data['adv']
         old_log_prob = data['log_prob']
         old_val = data['val']
 
-        act_dist_cont, act_dist_disc, val = self.get_act_val(ob)
+        act_dist_cont, act_dist_disc, val = self.get_act_val({"ob": ob, "state": state})
         action_cont = action[:, :self.dim_cont]
         action_discrete = action[:, self.dim_cont:]
         log_prob_disc = action_log_prob(action_discrete, act_dist_disc)
