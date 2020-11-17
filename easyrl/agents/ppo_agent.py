@@ -83,7 +83,10 @@ class PPOAgent(BaseAgent):
     @torch.no_grad()
     def get_action(self, ob, sample=True, *args, **kwargs):
         self.eval_mode()
-        t_ob = torch_float(ob, device=ppo_cfg.device)
+        if type(ob) is dict:
+            t_ob = {key: torch_float(ob[key], device=ppo_cfg.device) for key in ob}
+        else:
+            t_ob = torch_float(ob, device=ppo_cfg.device)
         act_dist, val = self.get_act_val(t_ob)
         action = action_from_dist(act_dist,
                                   sample=sample)
@@ -97,7 +100,10 @@ class PPOAgent(BaseAgent):
         return torch_to_np(action), action_info
 
     def get_act_val(self, ob, *args, **kwargs):
-        ob = torch_float(ob, device=ppo_cfg.device)
+        if type(ob) is dict:
+            ob = {key: torch_float(ob[key], device=ppo_cfg.device) for key in ob}
+        else:
+            ob = torch_float(ob, device=ppo_cfg.device)
         act_dist, body_out = self.actor(ob)
         if self.same_body:
             val, body_out = self.critic(body_x=body_out)
@@ -153,13 +159,14 @@ class PPOAgent(BaseAgent):
         for key, val in data.items():
             data[key] = torch_float(val, device=ppo_cfg.device)
         ob = data['ob']
+        state = data['state']
         action = data['action']
         ret = data['ret']
         adv = data['adv']
         old_log_prob = data['log_prob']
         old_val = data['val']
 
-        act_dist, val = self.get_act_val(ob)
+        act_dist, val = self.get_act_val({"ob": ob, "state": state})
         log_prob = action_log_prob(action, act_dist)
         entropy = action_entropy(act_dist, log_prob)
         if not all([x.ndim == 1 for x in [val, entropy, log_prob]]):

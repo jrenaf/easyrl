@@ -94,14 +94,14 @@ def save_model(data, cfg, is_best=False, step=None):
             torch.save(data, fl)
 
 
-def load_torch_model(model_file):
+def load_torch_model(model_file, device="cuda"):
     logger.info(f'Loading model from {model_file}')
     if isinstance(model_file, str):
         model_file = Path(model_file)
     if not model_file.exists():
         raise ValueError(f'Checkpoint file ({model_file}) '
                          f'does not exist!')
-    ckpt_data = torch.load(model_file)
+    ckpt_data = torch.load(model_file, map_location=torch.device(device))
     return ckpt_data
 
 
@@ -127,14 +127,15 @@ def load_ckpt_data(cfg, step=None, pretrain_model=None):
             pretrain_model = Path(pretrain_model)
         if pretrain_model.suffix != '.pt':
             pretrain_model = get_latest_ckpt(pretrain_model)
-        ckpt_data = load_torch_model(pretrain_model)
+        print("DEVICE", cfg.device)
+        ckpt_data = load_torch_model(pretrain_model, cfg.device)
         return ckpt_data
     if step is None:
         ckpt_file = Path(cfg.model_dir).joinpath('model_best.pt')
     else:
         ckpt_file = Path(cfg.model_dir).joinpath('ckpt_{:012d}.pt'.format(step))
 
-    ckpt_data = load_torch_model(ckpt_file)
+    ckpt_data = load_torch_model(ckpt_file, cfg.device)
     return ckpt_data
 
 
