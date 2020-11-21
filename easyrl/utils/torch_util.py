@@ -101,7 +101,7 @@ def load_torch_model(model_file, device="cuda"):
     if not model_file.exists():
         raise ValueError(f'Checkpoint file ({model_file}) '
                          f'does not exist!')
-    ckpt_data = torch.load(model_file, map_location=torch.device(device))
+    ckpt_data = torch.load(str(model_file), map_location=torch.device(device))
     return ckpt_data
 
 
