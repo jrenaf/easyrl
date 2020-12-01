@@ -96,6 +96,7 @@ class Trajectory:
     def rewards(self):
         return np.array([step_data.reward for step_data in self.traj_data])
 
+
     @property
     def raw_rewards(self):
         if len(self.traj_data) > 0 and 'raw_reward' in self.traj_data[0].info[0]:
@@ -163,6 +164,8 @@ class Trajectory:
                     t = idx + 1
             all_epr.append(epr)
         return all_epr
+
+
 
     def pop(self):
         """

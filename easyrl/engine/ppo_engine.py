@@ -186,11 +186,28 @@ class PPOEngine(BasicEngine):
         log_info['rollout_steps_per_iter'] = traj.total_steps
 
         # log infos
+        dones = traj.dones
         for key in traj.infos[0][0].keys():
-            info_list = [tuple([info.get(key, 0) for info in infos]) for infos in traj.infos]
+            if "final" in key:
+                all_finals = []
+                finals = np.array([[step_data.info[i][key] for i in range(len(step_data.info))] for step_data in traj.traj_data])
+                epfinals = []
+                for i in range(dones.shape[1]):
+                    di = dones[:, i]
+                    if not np.any(di):
+                        epfinals.append(finals[-1, i])
+                    else:
+                        done_idx = np.where(di)[0]
+                        t = 0
+                        for idx in done_idx:
+                            epfinals.append(finals[idx, i])
+                            t = idx + 1
+                info_list = epfinals
+            else:
+                info_list = [tuple([info.get(key, 0) for info in infos]) for infos in traj.infos]
             info_stats = get_list_stats(info_list)
             for sk, sv in info_stats.items():
-                log_info['rollout_{}.'.format(key) + sk] = sv
+                log_info['rollout_{}/'.format(key) + sk] = sv
 
         ep_returns = list(chain(*traj.episode_returns))
         for epr in ep_returns:
