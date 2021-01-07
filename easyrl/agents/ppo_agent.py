@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from functools import partial
 
 import numpy as np
@@ -7,7 +8,7 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import LambdaLR
 
 from easyrl.agents.base_agent import BaseAgent
-from easyrl.configs.ppo_config import ppo_cfg
+from easyrl.configs import cfg
 from easyrl.utils.common import linear_decay_percent
 from easyrl.utils.rl_logger import logger
 from easyrl.utils.torch_util import action_entropy
@@ -22,52 +23,55 @@ from easyrl.utils.torch_util import torch_float
 from easyrl.utils.torch_util import torch_to_np
 
 
+@dataclass
 class PPOAgent(BaseAgent):
-    def __init__(self, actor, critic, same_body=False):
-        self.actor = actor
-        self.critic = critic
-        move_to([self.actor, self.critic],
-                device=ppo_cfg.device)
+    actor: nn.Module
+    critic: nn.Module
+    same_body: float = False
 
-        self.same_body = same_body
-        if ppo_cfg.vf_loss_type == 'mse':
-            self.val_loss_criterion = nn.MSELoss().to(ppo_cfg.device)
-        elif ppo_cfg.vf_loss_type == 'smoothl1':
-            self.val_loss_criterion = nn.SmoothL1Loss().to(ppo_cfg.device)
+    def __post_init__(self):
+        move_to([self.actor, self.critic],
+                device=cfg.alg.device)
+        if cfg.alg.vf_loss_type == 'mse':
+            self.val_loss_criterion = nn.MSELoss().to(cfg.alg.device)
+        elif cfg.alg.vf_loss_type == 'smoothl1':
+            self.val_loss_criterion = nn.SmoothL1Loss().to(cfg.alg.device)
         else:
-            raise TypeError(f'Unknown value loss type: {ppo_cfg.vf_loss_type}!')
+            raise TypeError(f'Unknown value loss type: {cfg.alg.vf_loss_type}!')
         all_params = list(self.actor.parameters()) + list(self.critic.parameters())
         # keep unique elements only. The following code works for python >=3.7
         # for earlier version of python, u need to use OrderedDict
         self.all_params = dict.fromkeys(all_params).keys()
-        if (ppo_cfg.linear_decay_lr or ppo_cfg.linear_decay_clip_range) and \
-                ppo_cfg.max_steps > ppo_cfg.max_decay_steps:
-            raise ValueError('max_steps should be no greater than max_decay_steps.')
-        total_epochs = int(np.ceil(ppo_cfg.max_decay_steps / (ppo_cfg.num_envs *
-                                                              ppo_cfg.episode_steps)))
-        if ppo_cfg.linear_decay_clip_range:
-            self.clip_range_decay_rate = ppo_cfg.clip_range / float(total_epochs)
+        if (cfg.alg.linear_decay_lr or cfg.alg.linear_decay_clip_range) and \
+                cfg.alg.max_steps > cfg.alg.max_decay_steps:
+            logger.warning('max_steps should not be greater than max_decay_steps.')
+            cfg.alg.max_decay_steps = int(cfg.alg.max_steps * 1.5)
+            logger.warning(f'Resetting max_decay_steps to {cfg.alg.max_decay_steps}!')
+        total_epochs = int(np.ceil(cfg.alg.max_decay_steps / (cfg.alg.num_envs *
+                                                              cfg.alg.episode_steps)))
+        if cfg.alg.linear_decay_clip_range:
+            self.clip_range_decay_rate = cfg.alg.clip_range / float(total_epochs)
 
         p_lr_lambda = partial(linear_decay_percent,
                               total_epochs=total_epochs)
         optim_args = dict(
-            lr=ppo_cfg.policy_lr,
-            weight_decay=ppo_cfg.weight_decay
+            lr=cfg.alg.policy_lr,
+            weight_decay=cfg.alg.weight_decay
         )
-        if not ppo_cfg.sgd:
-            optim_args['amsgrad'] = ppo_cfg.use_amsgrad
+        if not cfg.alg.sgd:
+            optim_args['amsgrad'] = cfg.alg.use_amsgrad
             optim_func = optim.Adam
         else:
-            optim_args['nesterov'] = True if ppo_cfg.momentum > 0 else False
-            optim_args['momentum'] = ppo_cfg.momentum
+            optim_args['nesterov'] = True if cfg.alg.momentum > 0 else False
+            optim_args['momentum'] = cfg.alg.momentum
             optim_func = optim.SGD
         if self.same_body:
             optim_args['params'] = self.all_params
         else:
             optim_args['params'] = [{'params': self.actor.parameters(),
-                                     'lr': ppo_cfg.policy_lr},
+                                     'lr': cfg.alg.policy_lr},
                                     {'params': self.critic.parameters(),
-                                     'lr': ppo_cfg.value_lr}]
+                                     'lr': cfg.alg.value_lr}]
 
         self.optimizer = optim_func(**optim_args)
 
@@ -84,9 +88,10 @@ class PPOAgent(BaseAgent):
     def get_action(self, ob, sample=True, *args, **kwargs):
         self.eval_mode()
         if type(ob) is dict:
-            t_ob = {key: torch_float(ob[key], device=ppo_cfg.device) for key in ob}
+            t_ob = {key: torch_float(ob[key], device=cfg.alg.device) for key in ob}
         else:
-            t_ob = torch_float(ob, device=ppo_cfg.device)
+            t_ob = torch_float(ob, device=cfg.alg.device)
+
         act_dist, val = self.get_act_val(t_ob)
         action = action_from_dist(act_dist,
                                   sample=sample)
@@ -101,9 +106,10 @@ class PPOAgent(BaseAgent):
 
     def get_act_val(self, ob, *args, **kwargs):
         if type(ob) is dict:
-            ob = {key: torch_float(ob[key], device=ppo_cfg.device) for key in ob}
+            ob = {key: torch_float(ob[key], device=cfg.alg.device) for key in ob}
         else:
-            ob = torch_float(ob, device=ppo_cfg.device)
+            ob = torch_float(ob, device=cfg.alg.device)
+
         act_dist, body_out = self.actor(ob)
         if self.same_body:
             val, body_out = self.critic(body_x=body_out)
@@ -115,40 +121,36 @@ class PPOAgent(BaseAgent):
     @torch.no_grad()
     def get_val(self, ob, *args, **kwargs):
         self.eval_mode()
+
         if type(ob) is dict:
-            ob = {key: torch_float(ob[key], device=ppo_cfg.device) for key in ob}
+            ob = {key: torch_float(ob[key], device=cfg.alg.device) for key in ob}
         else:
-            ob = torch_float(ob, device=ppo_cfg.device)
+            ob = torch_float(ob, device=cfg.alg.device)
+
         val, body_out = self.critic(x=ob)
         val = val.squeeze(-1)
         return val
 
     def optimize(self, data, *args, **kwargs):
-        self.train_mode()
         pre_res = self.optim_preprocess(data)
-        val, old_val, ret, log_prob, old_log_prob, adv, entropy = pre_res
-        entropy = torch.mean(entropy)
-        loss_res = self.cal_loss(val=val,
-                                 old_val=old_val,
-                                 ret=ret,
-                                 log_prob=log_prob,
-                                 old_log_prob=old_log_prob,
-                                 adv=adv,
-                                 entropy=entropy)
+        processed_data = pre_res
+        processed_data['entropy'] = torch.mean(processed_data['entropy'])
+        loss_res = self.cal_loss(**processed_data)
         loss, pg_loss, vf_loss, ratio = loss_res
         self.optimizer.zero_grad()
         loss.backward()
 
-        grad_norm = clip_grad(self.all_params, ppo_cfg.max_grad_norm)
+        grad_norm = clip_grad(self.all_params, cfg.alg.max_grad_norm)
         self.optimizer.step()
         with torch.no_grad():
-            approx_kl = 0.5 * torch.mean(torch.pow(old_log_prob - log_prob, 2))
-            clip_frac = np.mean(np.abs(torch_to_np(ratio) - 1.0) > ppo_cfg.clip_range)
+            approx_kl = 0.5 * torch.mean(torch.pow(processed_data['old_log_prob'] -
+                                                   processed_data['log_prob'], 2))
+            clip_frac = np.mean(np.abs(torch_to_np(ratio) - 1.0) > cfg.alg.clip_range)
         optim_info = dict(
             pg_loss=pg_loss.item(),
             vf_loss=vf_loss.item(),
             total_loss=loss.item(),
-            entropy=entropy.item(),
+            entropy=processed_data['entropy'].item(),
             approx_kl=approx_kl.item(),
             clip_frac=clip_frac
         )
@@ -156,8 +158,9 @@ class PPOAgent(BaseAgent):
         return optim_info
 
     def optim_preprocess(self, data):
+        self.train_mode()
         for key, val in data.items():
-            data[key] = torch_float(val, device=ppo_cfg.device)
+            data[key] = torch_float(val, device=cfg.alg.device)
         ob = data['ob']
         state = data['state']
         action = data['action']
@@ -171,26 +174,35 @@ class PPOAgent(BaseAgent):
         entropy = action_entropy(act_dist, log_prob)
         if not all([x.ndim == 1 for x in [val, entropy, log_prob]]):
             raise ValueError('val, entropy, log_prob should be 1-dim!')
-        return val, old_val, ret, log_prob, old_log_prob, adv, entropy
+        processed_data = dict(
+            val=val,
+            old_val=old_val,
+            ret=ret,
+            log_prob=log_prob,
+            old_log_prob=old_log_prob,
+            adv=adv,
+            entropy=entropy
+        )
+        return processed_data
 
     def cal_loss(self, val, old_val, ret, log_prob, old_log_prob, adv, entropy):
         vf_loss = self.cal_val_loss(val=val, old_val=old_val, ret=ret)
         ratio = torch.exp(log_prob - old_log_prob)
         surr1 = adv * ratio
         surr2 = adv * torch.clamp(ratio,
-                                  1 - ppo_cfg.clip_range,
-                                  1 + ppo_cfg.clip_range)
+                                  1 - cfg.alg.clip_range,
+                                  1 + cfg.alg.clip_range)
         pg_loss = -torch.mean(torch.min(surr1, surr2))
 
-        loss = pg_loss - entropy * ppo_cfg.ent_coef + \
-               vf_loss * ppo_cfg.vf_coef
+        loss = pg_loss - entropy * cfg.alg.ent_coef + \
+               vf_loss * cfg.alg.vf_coef
         return loss, pg_loss, vf_loss, ratio
 
     def cal_val_loss(self, val, old_val, ret):
-        if ppo_cfg.clip_vf_loss:
+        if cfg.alg.clip_vf_loss:
             clipped_val = old_val + torch.clamp(val - old_val,
-                                                -ppo_cfg.clip_range,
-                                                ppo_cfg.clip_range)
+                                                -cfg.alg.clip_range,
+                                                cfg.alg.clip_range)
             vf_loss1 = torch.pow(val - ret, 2)
             vf_loss2 = torch.pow(clipped_val - ret, 2)
             vf_loss = 0.5 * torch.mean(torch.max(vf_loss1,
@@ -212,19 +224,17 @@ class PPOAgent(BaseAgent):
         self.lr_scheduler.step()
 
     def get_lr(self):
-        try:
-            cur_lr = self.lr_scheduler.get_last_lr()
-        except AttributeError:
-            cur_lr = self.lr_scheduler.get_lr()
+        cur_lr = self.lr_scheduler.get_lr()
         lrs = {'policy_lr': cur_lr[0]}
         if len(cur_lr) > 1:
             lrs['value_lr'] = cur_lr[1]
         return lrs
 
     def decay_clip_range(self):
-        ppo_cfg.clip_range -= self.clip_range_decay_rate
+        cfg.alg.clip_range -= self.clip_range_decay_rate
 
     def save_model(self, is_best=False, step=None):
+        self.save_env(cfg.alg.model_dir)
         data_to_save = {
             'step': step,
             'actor_state_dict': self.actor.state_dict(),
@@ -233,13 +243,14 @@ class PPOAgent(BaseAgent):
             'lr_scheduler_state_dict': self.lr_scheduler.state_dict()
         }
 
-        if ppo_cfg.linear_decay_clip_range:
-            data_to_save['clip_range'] = ppo_cfg.clip_range
+        if cfg.alg.linear_decay_clip_range:
+            data_to_save['clip_range'] = cfg.alg.clip_range
             data_to_save['clip_range_decay_rate'] = self.clip_range_decay_rate
-        save_model(data_to_save, ppo_cfg, is_best=is_best, step=step)
+        save_model(data_to_save, cfg.alg, is_best=is_best, step=step)
 
     def load_model(self, step=None, pretrain_model=None):
-        ckpt_data = load_ckpt_data(ppo_cfg, step=step,
+        self.load_env(cfg.alg.model_dir)
+        ckpt_data = load_ckpt_data(cfg.alg, step=step,
                                    pretrain_model=pretrain_model)
         load_state_dict(self.actor,
                         ckpt_data['actor_state_dict'])
@@ -249,9 +260,9 @@ class PPOAgent(BaseAgent):
             return
         self.optimizer.load_state_dict(ckpt_data['optim_state_dict'])
         self.lr_scheduler.load_state_dict(ckpt_data['lr_scheduler_state_dict'])
-        if ppo_cfg.linear_decay_clip_range:
+        if cfg.alg.linear_decay_clip_range:
             self.clip_range_decay_rate = ckpt_data['clip_range_decay_rate']
-            ppo_cfg.clip_range = ckpt_data['clip_range']
+            cfg.alg.clip_range = ckpt_data['clip_range']
         return ckpt_data['step']
 
     def print_param_grad_status(self):

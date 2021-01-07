@@ -8,10 +8,24 @@ import time
 from pathlib import Path
 
 import GPUtil
-
+import numpy as np
 from easyrl.utils.common import load_from_yaml
 from easyrl.utils.non_block_streamreader import NonBlockingStreamReader as NBSR
 from easyrl.utils.rl_logger import logger
+
+
+def expand_hparam_items(hparams, hp_keys, hp_vals, key_prefix=None):
+    for key, elem in hparams.items():
+        if isinstance(elem, list) or isinstance(elem, tuple):
+            key = key if key_prefix is None else f'{key_prefix}/{key}'
+            hp_keys.append(key)
+            hp_vals.append(elem)
+        elif isinstance(elem, dict):
+            expand_hparam_items(elem, hp_keys, hp_vals, key_prefix=key)
+        else:
+            key = key if key_prefix is None else f'{key_prefix}/{key}'
+            hp_keys.append(key)
+            hp_vals.append([elem])
 
 
 def get_hparams_combo(hparams):
@@ -31,15 +45,10 @@ def get_hparams_combo(hparams):
       permutations of argument values.
     """
     hp_vals = []
-
-    for elem in hparams.values():
-        if isinstance(elem, list) or isinstance(elem, tuple):
-            hp_vals.append(elem)
-        else:
-            hp_vals.append([elem])
+    hp_keys = []
+    expand_hparam_items(hparams, hp_keys, hp_vals)
 
     new_hp_vals = list(itertools.product(*hp_vals))
-    hp_keys = hparams.keys()
     new_hparams_combo = []
     for idx, hp_val in enumerate(new_hp_vals):
         new_hparams_combo.append({k: v for k, v in zip(hp_keys, hp_val)})
@@ -52,11 +61,27 @@ def cmd_for_hparams(hparams):
     """
     cmd = ''
     for field, val in hparams.items():
+        # by default, if a boolean variable is not specified
+        # with a default config value, we assume the default
+        # value is False
         if type(val) is bool:
-            if val is True:
-                cmd += f'--{field} '
-        elif val != 'None':
+            if '/' in field and 'true' in field:
+                cmd = boolean_cmd(cmd, field, val, default_false=False)
+            else:
+                cmd = boolean_cmd(cmd, field, val, default_false=True)
+        elif val != 'None' and val:
             cmd += f'--{field} {val} '
+    return cmd
+
+
+def boolean_cmd(cmd, field, val, default_false=True):
+    if '/' in field:
+        field = field.split('/')[-1]
+    if val is default_false:
+        if default_false:
+            cmd += f'--{field} '
+        else:
+            cmd += f'--no_{field} '
     return cmd
 
 
@@ -86,6 +111,7 @@ def get_sweep_cmds(yaml_file):
                                       excludeUUID=[])
     num_exps = len(cmds)
     gpus_free_mem = [all_gpus_stats[x].memoryFree for x in gpus_to_use]
+    sorted_gpu_ids = np.argsort(gpus_free_mem)[::-1]
     allowable_gpu_jobs = [int(math.floor(x / gpu_mem_per_job)) for x in gpus_free_mem]
     jobs_run_on_gpu = [0 for i in range(len(gpus_to_use))]
     can_run_on_gpu = [True for i in range(len(gpus_to_use))]
@@ -95,11 +121,13 @@ def get_sweep_cmds(yaml_file):
         if not any(can_run_on_gpu):
             logger.warning(f'Run out of GPUs!')
             break
-        while not can_run_on_gpu[gpu_id]:
+        sorted_gpu_id = sorted_gpu_ids[gpu_id]
+        while not can_run_on_gpu[sorted_gpu_id]:
             gpu_id = (gpu_id + 1) % len(gpus_to_use)
-        final_cmds.append(cmds[idx] + f' --device=cuda:{gpus_to_use[gpu_id]}')
-        jobs_run_on_gpu[gpu_id] += 1
-        can_run_on_gpu[gpu_id] = jobs_run_on_gpu[gpu_id] < allowable_gpu_jobs[gpu_id]
+            sorted_gpu_id = sorted_gpu_ids[gpu_id]
+        final_cmds.append(cmds[idx] + f' --device=cuda:{gpus_to_use[sorted_gpu_id]}')
+        jobs_run_on_gpu[sorted_gpu_id] += 1
+        can_run_on_gpu[sorted_gpu_id] = jobs_run_on_gpu[sorted_gpu_id] < allowable_gpu_jobs[sorted_gpu_id]
         gpu_id = (gpu_id + 1) % len(gpus_to_use)
     return final_cmds
 
@@ -117,8 +145,8 @@ def run_sweep_cmds(cmds):
         processes.append(p)
         nbsrs.append(NBSR(p.stdout))
     try:
+        all_done = [False for i in range(len(processes))]
         while True:
-            all_done = [False for i in range(len(processes))]
             for idx, p in enumerate(processes):
                 stime = time.time()
                 proc_print = False
@@ -129,18 +157,20 @@ def run_sweep_cmds(cmds):
                             logger.info(f'====================================')
                             logger.info(f'Process {idx}:')
                             proc_print = True
-                        print(lines.decode('utf-8'))
+                        logger.info(lines.decode('utf-8'))
                         if time.time() - stime > 10:
                             break
                     else:
                         break
                 if p.poll() is not None:
                     all_done[idx] = True
-                    break
             if all(all_done):
                 break
             time.sleep(2)
+        logger.info('All processes are completed.')
     except KeyboardInterrupt:
+        logger.warning('Keyboard interruption.')
+    finally:
         print('Exiting...')
         for p in processes:
             p.terminate()

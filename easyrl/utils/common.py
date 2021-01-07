@@ -1,3 +1,4 @@
+import importlib
 import json
 import numbers
 import pickle as pkl
@@ -18,6 +19,29 @@ def set_random_seed(seed):
     torch.manual_seed(seed)
     random.seed(seed)
     torch.cuda.manual_seed_all(seed)
+
+
+def module_available(module_path: str) -> bool:
+    """Testing if given module is avalaible in your env.
+
+    Copied from https://github.com/PyTorchLightning/pytorch-lightning/blob/master/pytorch_lightning/utilities/__init__.py.
+
+    >>> module_available('os')
+    True
+    >>> module_available('bla.bla')
+    False
+    """
+    try:
+        mods = module_path.split('.')
+        assert mods, 'nothing given to test'
+        # it has to be tested as per partets
+        for i in range(len(mods)):
+            module_path = '.'.join(mods[:i + 1])
+            if importlib.util.find_spec(module_path) is None:
+                return False
+        return True
+    except AttributeError:
+        return False
 
 
 def list_to_numpy(data, expand_dims=None):
@@ -132,6 +156,14 @@ def load_from_yaml(file_name):
     return data
 
 
+def save_to_yaml(data, file_name):
+    file_name = pathlib_file(file_name)
+    if not file_name.parent.exists():
+        Path.mkdir(file_name.parent, parents=True)
+    with file_name.open('w') as f:
+        yaml.dump(data, f, default_flow_style=False)
+
+
 def save_to_pickle(data, file_name):
     file_name = pathlib_file(file_name)
     if not file_name.parent.exists():
@@ -183,6 +215,8 @@ def linear_decay_percent(epoch, total_epochs):
 
 
 def get_list_stats(data):
+    if len(data) < 1:
+        return dict()
     min_data = np.amin(data)
     max_data = np.amax(data)
     mean_data = np.mean(data)
@@ -234,6 +268,14 @@ class RunningMeanStd:
     def update_from_moments(self, batch_mean, batch_var, batch_count):
         self.mean, self.var, self.count = update_mean_var_count_from_moments(
             self.mean, self.var, self.count, batch_mean, batch_var, batch_count)
+
+    def get_states(self):
+        return self.mean, self.var, self.count
+
+    def set_states(self, mean, var, count):
+        self.mean = mean
+        self.var = var
+        self.count = count
 
 
 def update_mean_var_count_from_moments(mean, var, count, batch_mean, batch_var, batch_count):
