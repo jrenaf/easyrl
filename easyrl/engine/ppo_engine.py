@@ -17,7 +17,7 @@ from easyrl.utils.torch_util import torch_to_np
 
 
 class PPOEngine(BasicEngine):
-'''
+    '''
     def __init__(self, agent, runner):
         super().__init__(agent=agent,
                          runner=runner)
@@ -44,7 +44,7 @@ class PPOEngine(BasicEngine):
             train_log_info = self.train_once(traj)
             if iter_t % ppo_cfg.eval_interval == 0:
                 eval_log_info, _ = self.eval()
-'''
+    '''
     def train(self):
         for iter_t in count():
             if iter_t % cfg.alg.eval_interval == 0:

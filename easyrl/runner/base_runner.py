@@ -38,7 +38,9 @@ class BasicRunner:
             # vec env automatically resets the environment when it's done
             # so the returned next_ob is not actually the next observation
             true_next_ob = deepcopy(next_ob)
-            true_next_ob[done_idx] = np.array([info[i]['true_next_ob'] for i in done_idx])
+            print('done idx:', done_idx)
+            print('done idx hash:', hash(tuple(done_idx)))
+            true_next_ob[tuple(done_idx)] = np.array([info[i]['true_next_ob'] for i in done_idx])
             if all_dones is not None:
                 all_dones[done_idx] = True
             for dix in done_idx:

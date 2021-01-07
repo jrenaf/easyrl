@@ -23,8 +23,8 @@ from easyrl.utils.torch_util import torch_to_np
 
 
 class PPOAgentHybrid(PPOAgent):
-    def __init__(self, actor, critic, same_body=False, dim_cont=4):
-        super().__init__(actor, critic, same_body)
+    def __init__(self, env, actor, critic, same_body=False, dim_cont=4):
+        super().__init__(env, actor, critic, same_body)
         self.dim_cont = dim_cont
         
     @torch.no_grad()
