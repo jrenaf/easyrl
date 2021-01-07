@@ -8,8 +8,8 @@ def cal_gae(gamma, lam, rewards, value_estimates, last_value, dones):
     #print('vl', value_estimates, last_value)
     advs = np.zeros_like(rewards)
     last_gae_lam = 0
-    if len(value_estimates.shape) > 2:
-        last_value = last_value.reshape(1, last_value.shape[0], last_value.shape[1])
+    #if len(value_estimates.shape) > 2:
+    last_value = last_value.reshape(1, *last_value.shape)
     value_estimates = np.concatenate((value_estimates,
                                       last_value),
                                      axis=0)
