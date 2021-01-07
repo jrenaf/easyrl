@@ -94,7 +94,7 @@ class RNNRunner(BasicRunner):
 
             # the order of next few lines matter, do not exchange
             if get_last_val and not evaluation and t == time_steps - 1:
-                last_val, _ = self.agent.get_val(traj[-1].next_ob,
+                last_val, _ = self.agent.get_val(traj[-1].next_ob_raw,
                                                  hidden_state=hidden_state)
                 traj.add_extra('last_val', torch_to_np(last_val))
             hidden_state = self.check_hidden_state(hidden_state, done=done)

@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import LambdaLR
 
-from easyrl.agents.ppo_agent import PPOAgent
+from easyrl.agents.ppo_rnn_agent import PPORNNAgent
 from easyrl.configs import cfg
 from easyrl.utils.common import linear_decay_percent
 from easyrl.utils.rl_logger import logger
@@ -22,16 +22,17 @@ from easyrl.utils.torch_util import torch_float
 from easyrl.utils.torch_util import torch_to_np
 
 
-class PPOAgentHybrid(PPOAgent):
+class PPORNNAgentHybrid(PPORNNAgent):
     def __init__(self, env, actor, critic, same_body=False, dim_cont=4):
         super().__init__(env, actor, critic, same_body)
         self.dim_cont = dim_cont
         
     @torch.no_grad()
-    def get_action(self, ob, sample=True, *args, **kwargs):
+    def get_action(self, ob, sample=True, hidden_state=None, *args, **kwargs):
         self.eval_mode()
         t_ob = {key: torch_float(ob[key], device=cfg.alg.device) for key in ob}
-        act_dist_cont, act_dist_disc, val = self.get_act_val(t_ob)
+        act_dist_cont, act_dist_disc, val, out_hidden_state = self.get_act_val(t_ob,
+                                                             hidden_state=hidden_state)
         action_cont = action_from_dist(act_dist_cont,
                                   sample=sample)
         action_discrete = action_from_dist(act_dist_disc,
@@ -44,29 +45,38 @@ class PPOAgentHybrid(PPOAgent):
         log_prob = log_prob_cont + torch.sum(log_prob_disc, axis=1)
         #print(log_prob_cont.shape, log_prob_disc.shape)
         entropy = entropy_cont + torch.sum(entropy_disc, axis=1)
+        in_hidden_state = torch_to_np(hidden_state) if hidden_state is not None else hidden_state
 
         action_info = dict(
-                log_prob=torch_to_np(log_prob),
-                entropy=torch_to_np(entropy),
-            val=torch_to_np(val)
+            log_prob=torch_to_np(log_prob),
+            entropy=torch_to_np(entropy),
+            val=torch_to_np(val),
+            in_hidden_state = in_hidden_state
         )
+        #print("cd", action_cont.shape, action_discrete.shape)
         action = np.concatenate((torch_to_np(action_cont), torch_to_np(action_discrete)), axis=1)
         #print("action:", action)
 
-        return action, action_info
+        return action, action_info, out_hidden_state
 
-    def get_act_val(self, ob, *args, **kwargs):
+    def get_act_val(self, ob, hidden_state=None, done=None, *args, **kwargs):
         if type(ob) is dict:
             ob = {key: torch_float(ob[key], device=cfg.alg.device) for key in ob}
         else:
             ob = torch_float(ob, device=cfg.alg.device)
-        act_dist_cont, act_dist_disc, body_out = self.actor(ob)
+        act_dist_cont, act_dist_disc, body_out, out_hidden_state = self.actor(ob,
+                                                                              hidden_state=hidden_state,
+                                                                              done=done)
         if self.same_body:
-            val, body_out = self.critic(body_x=body_out)
+            val, body_out, _ = self.critic(body_x=body_out,
+                                        hidden_state=hidden_state,
+                                        done=done)
         else:
-            val, body_out = self.critic(x=ob)
+            val, body_out, _ = self.critic(x=ob,
+                                        hidden_state=hidden_state,
+                                        done=done)
         val = val.squeeze(-1)
-        return act_dist_cont, act_dist_disc, val
+        return act_dist_cont, act_dist_disc, val, out_hidden_state
 
 
     def optim_preprocess(self, data):
@@ -80,8 +90,12 @@ class PPOAgentHybrid(PPOAgent):
         adv = data['adv']
         old_log_prob = data['log_prob']
         old_val = data['val']
+        hidden_state = data['hidden_state']
+        hidden_state = hidden_state.permute(1, 0, 2)
 
-        act_dist_cont, act_dist_disc, val = self.get_act_val({"ob": ob, "state": state})
+        act_dist_cont, act_dist_disc, val = self.get_act_val({"ob": ob, "state": state},
+                                                             hidden_state=hidden_state,
+                                                             done=done)
         action_cont = action[:, :self.dim_cont]
         action_discrete = action[:, self.dim_cont:]
         log_prob_disc = action_log_prob(action_discrete, act_dist_disc)

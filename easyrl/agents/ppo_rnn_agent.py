@@ -45,7 +45,11 @@ class PPORNNAgent(PPOAgent):
         return torch_to_np(action.squeeze(1)), action_info, out_hidden_state
 
     def get_act_val(self, ob, hidden_state=None, done=None, *args, **kwargs):
-        ob = torch_float(ob, device=cfg.alg.device)
+        if type(ob) is dict:
+            ob = {key: torch_float(ob[key], device=cfg.alg.device) for key in ob}
+        else:
+            ob = torch_float(ob, device=cfg.alg.device)
+        
         act_dist, body_out, out_hidden_state = self.actor(ob,
                                                           hidden_state=hidden_state,
                                                           done=done)
@@ -60,7 +64,12 @@ class PPORNNAgent(PPOAgent):
     def get_val(self, ob, hidden_state=None, *args, **kwargs):
         self.eval_mode()
 
-        ob = torch_float(ob, device=cfg.alg.device).unsqueeze(dim=1)
+        if type(ob) is dict:
+            ob = {key: torch_float(ob[key], device=cfg.alg.device) for key in ob}
+        else:
+            ob = torch_float(ob, device=cfg.alg.device)
+
+        #ob = torch_float(ob, device=cfg.alg.device).unsqueeze(dim=1)
         val, body_out, out_hidden_state = self.critic(x=ob,
                                                       hidden_state=hidden_state)
         val = val.squeeze(-1)

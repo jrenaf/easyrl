@@ -204,6 +204,7 @@ class PPOEngine(BasicEngine):
         # log infos
         dones = traj.dones
         for key in traj.infos[0][0].keys():
+            #print("key", key)
             if "final" in key:
                 all_finals = []
                 finals = np.array([[step_data.info[i][key] for i in range(len(step_data.info))] for step_data in traj.traj_data])
@@ -221,9 +222,13 @@ class PPOEngine(BasicEngine):
                 info_list = epfinals
             else:
                 info_list = [tuple([info.get(key, 0) for info in infos]) for infos in traj.infos]
-            info_stats = get_list_stats(info_list)
-            for sk, sv in info_stats.items():
-                log_info['rollout_{}/'.format(key) + sk] = sv
+            #print("info list[0]", info_list[0])
+            try:
+                info_stats = get_list_stats(info_list)
+                for sk, sv in info_stats.items():
+                    log_info['rollout_{}/'.format(key) + sk] = sv
+            except Exception:
+                continue
 
         ep_returns = list(chain(*traj.episode_returns))
         for epr in ep_returns:

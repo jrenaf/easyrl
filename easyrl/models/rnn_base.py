@@ -21,10 +21,13 @@ class RNNBase(nn.Module):
         )
 
     def forward(self, x=None, hidden_state=None, done=None):
-        b = x.shape[0]
-        t = x.shape[1]
-        x = x.view(b * t, *x.shape[2:])
+        #print(x['state'].shape, x['ob'].shape)
+        #print(x)
+        b = x['state'].shape[0]
+        t = 1#x['state'].shape[1]
+        #x = x.view(b * t, *x.shape[2:])
         obs_feature = self.body(x)
+        #print(obs_feature.shape)
         obs_feature = obs_feature.view(b, t, *obs_feature.shape[1:])
 
         if self.training:
