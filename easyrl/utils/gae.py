@@ -17,6 +17,7 @@ def cal_gae(gamma, lam, rewards, value_estimates, last_value, dones):
         non_terminal = 1.0 - dones[t]
         delta = rewards[t] + gamma * value_estimates[t + 1] * non_terminal - value_estimates[t]
         last_gae_lam = delta + gamma * lam * non_terminal * last_gae_lam
+        #print(last_gae_lam)
         advs[t] = last_gae_lam.copy()
     return advs
 

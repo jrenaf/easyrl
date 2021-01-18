@@ -171,6 +171,7 @@ class PPOEngine(BasicEngine):
             log_prob=log_prob,
             val=vals
         )
+        print(data.keys())
         rollout_dataset = EpisodeDataset(**data)
         rollout_dataloader = DataLoader(rollout_dataset,
                                         batch_size=cfg.alg.batch_size,

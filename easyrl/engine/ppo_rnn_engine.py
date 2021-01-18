@@ -18,9 +18,11 @@ class PPORNNEngine(PPOEngine):
         hidden_state = action_infos[0]['in_hidden_state']
         if hidden_state is not None:
             hidden_state = hidden_state.swapaxes(0, 1)
+            print('enginehs', hidden_state.shape)
         else:
             hidden_state_shape = self.runner.hidden_state_shape
             hidden_state = np.zeros((vals.shape[1], hidden_state_shape[0], hidden_state_shape[2]))
+            print('enginehs2', hidden_state.shape)
         adv = self.cal_advantages(traj)
         ret = adv + vals
         if cfg.alg.normalize_adv:
@@ -29,6 +31,7 @@ class PPORNNEngine(PPOEngine):
         # TxN --> NxT
         data = dict(
             ob=traj.obs.swapaxes(0, 1),
+            state=traj.states.swapaxes(0, 1),
             action=traj.actions.swapaxes(0, 1),
             ret=ret.swapaxes(0, 1),
             adv=adv.swapaxes(0, 1),

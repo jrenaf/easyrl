@@ -21,13 +21,20 @@ class RNNBase(nn.Module):
         )
 
     def forward(self, x=None, hidden_state=None, done=None):
-        #print(x['state'].shape, x['ob'].shape)
+        print(x['state'].shape, x['ob'].shape)
+        if hidden_state is not None: print('hidden state', hidden_state.shape)
         #print(x)
-        b = x['state'].shape[0]
-        t = 1#x['state'].shape[1]
-        #x = x.view(b * t, *x.shape[2:])
+
+        #x['state'] = x['state'].view(b * t, *x['state'].shape[1:])
+        if len(x['ob'].shape) > 3:
+          x['ob'] = x['ob'].permute(1, 0, 2, 3)
+          print(x['ob'].shape)
+
+        t = x['ob'].shape[0]
+        b = 1#x['state'].shape[1]
+        print(f'b: {b}, t: {t}')
         obs_feature = self.body(x)
-        #print(obs_feature.shape)
+        print('w', obs_feature.shape)
         obs_feature = obs_feature.view(b, t, *obs_feature.shape[1:])
 
         if self.training:
@@ -37,12 +44,15 @@ class RNNBase(nn.Module):
             if done_ts[-1] != t:
                 done_ts = done_ts + [t]
             rnn_features = []
+            
 
+            print('done_ts', done_ts)
             for idx in range(len(done_ts) - 1):
                 sid = done_ts[idx]
                 eid = done_ts[idx + 1]
                 if hidden_state is not None and sid > 0:
                     hidden_state = hidden_state * (1 - done[:, sid-1]).view(1, -1, 1)
+                print('rnnbase2', sid, eid, obs_feature[:, sid:eid].shape, hidden_state.shape)
                 rfeatures, hidden_state = self.gru(obs_feature[:, sid:eid],
                                                    hidden_state)
                 rnn_features.append(rfeatures)

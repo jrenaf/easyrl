@@ -62,6 +62,7 @@ class RNNRunner(BasicRunner):
                                                                       sample=sample,
                                                                       hidden_state=hidden_state,
                                                                       **action_kwargs)
+            if hidden_state is not None: print('hss', hidden_state.shape)
             if self.hidden_state_shape is None:
                 self.hidden_state_shape = hidden_state.shape
             next_ob, reward, done, info = env.step(action)

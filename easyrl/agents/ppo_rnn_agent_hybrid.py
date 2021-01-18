@@ -53,7 +53,7 @@ class PPORNNAgentHybrid(PPORNNAgent):
             val=torch_to_np(val),
             in_hidden_state = in_hidden_state
         )
-        #print("cd", action_cont.shape, action_discrete.shape)
+        print("cd", action_cont.shape, action_discrete.shape)
         action = np.concatenate((torch_to_np(action_cont), torch_to_np(action_discrete)), axis=1)
         #print("action:", action)
 
@@ -76,10 +76,13 @@ class PPORNNAgentHybrid(PPORNNAgent):
                                         hidden_state=hidden_state,
                                         done=done)
         val = val.squeeze(-1)
+
+        print('dists', act_dist_cont, act_dist_disc)
         return act_dist_cont, act_dist_disc, val, out_hidden_state
 
 
     def optim_preprocess(self, data):
+        print(data.keys())
         self.train_mode()
         for key, val in data.items():
             data[key] = torch_float(val, device=cfg.alg.device)
@@ -90,14 +93,17 @@ class PPORNNAgentHybrid(PPORNNAgent):
         adv = data['adv']
         old_log_prob = data['log_prob']
         old_val = data['val']
+        done = data['done']
         hidden_state = data['hidden_state']
         hidden_state = hidden_state.permute(1, 0, 2)
 
-        act_dist_cont, act_dist_disc, val = self.get_act_val({"ob": ob, "state": state},
+        act_dist_cont, act_dist_disc, val, out_hidden_state = self.get_act_val({"ob": ob, "state": state},
                                                              hidden_state=hidden_state,
                                                              done=done)
-        action_cont = action[:, :self.dim_cont]
-        action_discrete = action[:, self.dim_cont:]
+        action_cont = action[:, :, :self.dim_cont]
+        action_discrete = action[:, :, self.dim_cont:]
+        print('action', action, 'dim_cont', self.dim_cont)
+        print('abc', action_discrete.shape, act_dist_disc)
         log_prob_disc = action_log_prob(action_discrete, act_dist_disc)
         log_prob_cont = action_log_prob(action_cont, act_dist_cont)
         entropy_disc = action_entropy(act_dist_disc, log_prob_disc)
