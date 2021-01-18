@@ -23,7 +23,7 @@ class RNNValueNet(nn.Module):
                                              hidden_state=hidden_state,
                                              **kwargs)
         val = self.head(body_x)
-        print('val', val.shape)
+        #print('val', val.shape)
         #val = val.reshape(-1, 1)
-        print('val', val.shape)
+        #print('val', val.shape)
         return val, body_x, hidden_state

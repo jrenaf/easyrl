@@ -37,14 +37,14 @@ class PPORNNAgentHybrid(PPORNNAgent):
                                   sample=sample)
         action_discrete = action_from_dist(act_dist_disc,
                                   sample=sample)
-        print('456', action_discrete.shape, act_dist_disc)
-        print('123', action_cont.shape, act_dist_cont)
+        #print('456', action_discrete.shape, act_dist_disc)
+        #print('123', action_cont.shape, act_dist_cont)
         log_prob_disc = action_log_prob(action_discrete, act_dist_disc)
         log_prob_cont = action_log_prob(action_cont, act_dist_cont)
         entropy_disc = action_entropy(act_dist_disc, log_prob_disc)
         entropy_cont = action_entropy(act_dist_cont, log_prob_cont)
         #print("cont:", torch_to_np(log_prob_cont).reshape(-1, 1))
-        print('lpbs', log_prob_disc.shape)
+        #print('lpbs', log_prob_disc.shape)
         if len(log_prob_disc.shape) == 2:
             log_prob = log_prob_cont + torch.sum(log_prob_disc, axis=1)
             #print(log_prob_cont.shape, log_prob_disc.shape)
@@ -61,7 +61,7 @@ class PPORNNAgentHybrid(PPORNNAgent):
             val=torch_to_np(val),
             in_hidden_state = in_hidden_state
         )
-        print("cd", action_cont.shape, action_discrete.shape)
+        #print("cd", action_cont.shape, action_discrete.shape)
         action = np.concatenate((torch_to_np(action_cont), torch_to_np(action_discrete)), axis=1)
         #print("action:", action)
 
@@ -73,11 +73,11 @@ class PPORNNAgentHybrid(PPORNNAgent):
         else:
             ob = torch_float(ob, device=cfg.alg.device)
 
-        print(ob["state"].shape)
+        #print(ob["state"].shape)
         act_dist_cont, act_dist_disc, body_out, out_hidden_state = self.actor(ob,
                                                                               hidden_state=hidden_state,
                                                                               done=done)
-        print(act_dist_cont)
+        #print(act_dist_cont)
         if self.same_body:
             val, body_out, _ = self.critic(body_x=body_out,
                                         hidden_state=hidden_state,
@@ -110,8 +110,8 @@ class PPORNNAgentHybrid(PPORNNAgent):
                                                              done=done)
         action_cont = action[:, :, :self.dim_cont]
         action_discrete = action[:, :, self.dim_cont:]
-        print('456', action_discrete.shape, act_dist_disc)
-        print('123', action_cont.shape, act_dist_cont)
+        #print('456', action_discrete.shape, act_dist_disc)
+        #print('123', action_cont.shape, act_dist_cont)
         log_prob_disc = action_log_prob(action_discrete, act_dist_disc)
         log_prob_cont = action_log_prob(action_cont, act_dist_cont)
         entropy_disc = action_entropy(act_dist_disc, log_prob_disc)
@@ -126,7 +126,7 @@ class PPORNNAgentHybrid(PPORNNAgent):
             #print(log_prob_cont.shape, log_prob_disc.shape)
             entropy = entropy_cont + torch.sum(entropy_disc, axis=2)
 
-        print(val.shape, entropy.shape, log_prob.shape)
+        #print(val.shape, entropy.shape, log_prob.shape)
         #if not all([x.ndim == 1 for x in [val, entropy, log_prob]]):
         #    raise ValueError('val, entropy, log_prob should be 1-dim!')
         processed_data = dict(

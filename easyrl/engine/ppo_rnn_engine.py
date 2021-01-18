@@ -14,7 +14,7 @@ class PPORNNEngine(PPOEngine):
     def traj_preprocess(self, traj):
         action_infos = traj.action_infos
         vals = np.array([ainfo['val'].flatten() for ainfo in action_infos])
-        print('vs', vals.shape)
+        #print('vs', vals.shape)
         log_prob = np.array([ainfo['log_prob'] for ainfo in action_infos])
         hidden_state = action_infos[0]['in_hidden_state']
         if hidden_state is not None:

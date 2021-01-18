@@ -21,13 +21,13 @@ class RNNBase(nn.Module):
         )
 
     def forward(self, x=None, hidden_state=None, done=None):
-        print('xshapes', x['state'].shape, x['ob'].shape)
+        #print('xshapes', x['state'].shape, x['ob'].shape)
         #print(x)
         if len(x['state'].shape) > 2:
           b = x['state'].shape[0]
           t = x['state'].shape[1]#1#x['state'].shape[1]
           x['state'] = x['state'].view(b * t, *x['state'].shape[2:])
-          print(b, t, *x['ob'].shape)
+          #print(b, t, *x['ob'].shape)
           x['ob'] = x['ob'].view(b * t, *x['ob'].shape[2:])
         else:
           b = x['state'].shape[0]
@@ -59,5 +59,5 @@ class RNNBase(nn.Module):
             rnn_features, hidden_state = self.gru(obs_feature,
                                                   hidden_state)
         out = self.fcs(rnn_features)
-        print('out.shape', out.shape)
+        #print('out.shape', out.shape)
         return out, hidden_state
