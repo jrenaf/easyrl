@@ -29,6 +29,7 @@ class PPORNNEngine(PPOEngine):
         # TxN --> NxT
         data = dict(
             ob=traj.obs.swapaxes(0, 1),
+            state=traj.states.swapaxes(0, 1),
             action=traj.actions.swapaxes(0, 1),
             ret=ret.swapaxes(0, 1),
             adv=adv.swapaxes(0, 1),

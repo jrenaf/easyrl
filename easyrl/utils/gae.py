@@ -8,14 +8,16 @@ def cal_gae(gamma, lam, rewards, value_estimates, last_value, dones):
     #print('vl', value_estimates, last_value)
     advs = np.zeros_like(rewards)
     last_gae_lam = 0
-    if len(value_estimates.shape) > 2:
-        last_value = last_value.reshape(1, last_value.shape[0], last_value.shape[1])
+    #if len(value_estimates.shape) > 1:
+    last_value = last_value.reshape(1, *last_value.shape)#last_value.shape[0], last_value.shape[1])
     value_estimates = np.concatenate((value_estimates,
                                       last_value),
                                      axis=0)
+    print(value_estimates.shape)
     for t in reversed(range(rewards.shape[0])):
         non_terminal = 1.0 - dones[t]
         delta = rewards[t] + gamma * value_estimates[t + 1] * non_terminal - value_estimates[t]
+        print('value_estimates', value_estimates[t+1], 'delta', delta.shape, 'non_terminal', non_terminal.shape, 'rewards', rewards[t].shape)
         last_gae_lam = delta + gamma * lam * non_terminal * last_gae_lam
         advs[t] = last_gae_lam.copy()
     return advs

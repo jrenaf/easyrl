@@ -64,9 +64,12 @@ class PPORNNAgentHybrid(PPORNNAgent):
             ob = {key: torch_float(ob[key], device=cfg.alg.device) for key in ob}
         else:
             ob = torch_float(ob, device=cfg.alg.device)
+
+        print(ob["state"].shape)
         act_dist_cont, act_dist_disc, body_out, out_hidden_state = self.actor(ob,
                                                                               hidden_state=hidden_state,
                                                                               done=done)
+        print(act_dist_cont)
         if self.same_body:
             val, body_out, _ = self.critic(body_x=body_out,
                                         hidden_state=hidden_state,
@@ -90,10 +93,11 @@ class PPORNNAgentHybrid(PPORNNAgent):
         adv = data['adv']
         old_log_prob = data['log_prob']
         old_val = data['val']
+        done = data['done']
         hidden_state = data['hidden_state']
         hidden_state = hidden_state.permute(1, 0, 2)
 
-        act_dist_cont, act_dist_disc, val = self.get_act_val({"ob": ob, "state": state},
+        act_dist_cont, act_dist_disc, val, out_hidden_state = self.get_act_val({"ob": ob, "state": state},
                                                              hidden_state=hidden_state,
                                                              done=done)
         action_cont = action[:, :self.dim_cont]
