@@ -36,6 +36,8 @@ class PPOAgentHybrid(PPOAgent):
                                   sample=sample)
         action_discrete = action_from_dist(act_dist_disc,
                                   sample=sample)
+        print('456', action_discrete.shape, act_dist_disc)
+        print('123', action_cont.shape, act_dist_cont)
         log_prob_disc = action_log_prob(action_discrete, act_dist_disc)
         log_prob_cont = action_log_prob(action_cont, act_dist_cont)
         entropy_disc = action_entropy(act_dist_disc, log_prob_disc)
@@ -50,6 +52,7 @@ class PPOAgentHybrid(PPOAgent):
                 entropy=torch_to_np(entropy),
             val=torch_to_np(val)
         )
+        print("cd", action_cont.shape, action_discrete.shape)
         action = np.concatenate((torch_to_np(action_cont), torch_to_np(action_discrete)), axis=1)
         #print("action:", action)
 

@@ -16,7 +16,7 @@ def cal_gae(gamma, lam, rewards, value_estimates, last_value, dones):
     print(value_estimates.shape)
     for t in reversed(range(rewards.shape[0])):
         non_terminal = 1.0 - dones[t]
-        delta = rewards[t] + gamma * value_estimates[t + 1] * non_terminal - value_estimates[t]
+        delta = rewards[t] + gamma * value_estimates[t + 1].flatten() * non_terminal - value_estimates[t].flatten()
         print('value_estimates', value_estimates[t+1], 'delta', delta.shape, 'non_terminal', non_terminal.shape, 'rewards', rewards[t].shape)
         last_gae_lam = delta + gamma * lam * non_terminal * last_gae_lam
         advs[t] = last_gae_lam.copy()

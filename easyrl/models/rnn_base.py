@@ -21,7 +21,7 @@ class RNNBase(nn.Module):
         )
 
     def forward(self, x=None, hidden_state=None, done=None):
-        print(x['state'].shape, x['ob'].shape)
+        print('xshapes', x['state'].shape, x['ob'].shape)
         #print(x)
         if len(x['state'].shape) > 2:
           b = x['state'].shape[0]
