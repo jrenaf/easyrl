@@ -101,6 +101,8 @@ class RNNRunner(BasicRunner):
             hidden_state = self.check_hidden_state(hidden_state, done=done)
         self.obs = ob if not evaluation else None
         self.hidden_states = hidden_state.detach() if not evaluation else None
+
+        print("traj:", len(traj.traj_data))
         return traj
 
     def reset(self, env=None, *args, **kwargs):
