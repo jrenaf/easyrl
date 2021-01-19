@@ -42,7 +42,6 @@ class VecNormalize(VecEnvWrapper):
         return obs, rews, news, infos
 
     def _obfilt(self, obs):
-        print(obs, obs['ob'])
         if self.ob_rms:
             if isinstance(self.observation_space, spaces.Dict):
                 if self.training:
