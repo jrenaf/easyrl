@@ -28,7 +28,11 @@ class PPORNNAgent(PPOAgent):
     def get_action(self, ob, sample=True, hidden_state=None, *args, **kwargs):
         self.eval_mode()
 
-        t_ob = torch.from_numpy(ob).float().to(cfg.alg.device).unsqueeze(dim=1)
+        if type(ob) is dict:
+            t_ob = {key: torch_float(ob[key], device=cfg.alg.device) for key in ob}
+        else:
+            t_ob = torch.from_numpy(ob).float().to(cfg.alg.device).unsqueeze(dim=1)
+        
         act_dist, val, out_hidden_state = self.get_act_val(t_ob,
                                                            hidden_state=hidden_state)
         action = action_from_dist(act_dist,
@@ -81,6 +85,7 @@ class PPORNNAgent(PPOAgent):
             if val is not None:
                 data[key] = torch_float(val, device=cfg.alg.device)
         ob = data['ob']
+        state = data['state']
         action = data['action']
         ret = data['ret']
         adv = data['adv']
@@ -90,7 +95,7 @@ class PPORNNAgent(PPOAgent):
         hidden_state = data['hidden_state']
         hidden_state = hidden_state.permute(1, 0, 2)
 
-        act_dist, val, out_hidden_state = self.get_act_val(ob,
+        act_dist, val, out_hidden_state = self.get_act_val({"ob": ob, "state": state},
                                                            hidden_state=hidden_state,
                                                            done=done)
         log_prob = action_log_prob(action, act_dist)
