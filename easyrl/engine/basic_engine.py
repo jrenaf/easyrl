@@ -18,7 +18,13 @@ class BasicEngine:
         self._best_eval_ret = -np.inf
         self._eval_is_best = False
         if cfg.alg.test or cfg.alg.resume:
-            self.cur_step = self.agent.load_model(step=cfg.alg.resume_step)
+            try:
+                self.cur_step = self.agent.load_model(step=cfg.alg.resume_step)
+            except ValueError:
+                if cfg.alg.resume:
+                    print("File not found! Starting from scratch.")
+                else:
+                    raise ValueError("Checkpoint file does not exist!")
         else:
             if cfg.alg.pretrain_model is not None:
                 self.agent.load_model(pretrain_model=cfg.alg.pretrain_model)
