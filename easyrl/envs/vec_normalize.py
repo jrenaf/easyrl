@@ -69,6 +69,7 @@ class VecNormalize(VecEnvWrapper):
     def get_states(self):
         data = dict(
             ob_rms=self.ob_rms,
+            state_rms=self.state_rms,
             ret_rms=self.ret_rms,
             clipob=self.clipob,
             cliprew=self.cliprew,
@@ -79,7 +80,7 @@ class VecNormalize(VecEnvWrapper):
 
     def set_states(self, data):
         assert isinstance(data, dict)
-        keys = ['ob_rms', 'ret_rms', 'clipob',
+        keys = ['ob_rms', 'state_rms', 'ret_rms', 'clipob',
                 'cliprew', 'gamma', 'epsilon']
         for key in keys:
             if key in data:
