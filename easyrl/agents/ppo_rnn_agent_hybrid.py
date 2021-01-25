@@ -95,6 +95,10 @@ class PPORNNAgentHybrid(PPORNNAgent):
         for key, val in data.items():
             data[key] = torch_float(val, device=cfg.alg.device)
         ob = data['ob']
+        #print(ob.shape)
+        #from IPython import embed
+        #embed()
+
         state = data['state']
         action = data['action']
         ret = data['ret']
