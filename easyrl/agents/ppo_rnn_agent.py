@@ -43,7 +43,7 @@ class PPORNNAgent(PPOAgent):
         action_info = dict(
             log_prob=torch_to_np(log_prob.squeeze(1)),
             entropy=torch_to_np(entropy.squeeze(1)),
-            val=torch_to_np(val.squeeze(1)).flatten(),
+            val=torch_to_np(val.squeeze(1)),
             in_hidden_state=in_hidden_state
         )
         return torch_to_np(action.squeeze(1)), action_info, out_hidden_state
