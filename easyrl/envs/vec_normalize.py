@@ -61,9 +61,9 @@ class VecNormalize(VecEnvWrapper):
         else:
             return obs
 
-    def reset(self):
+    def reset(self, cfgs=None):
         self.ret = np.zeros(self.num_envs)
-        obs = self.venv.reset()
+        obs = self.venv.reset(cfgs)
         return self._obfilt(obs)
 
     def get_states(self):
