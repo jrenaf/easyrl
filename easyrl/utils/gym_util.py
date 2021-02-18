@@ -18,6 +18,7 @@ from gym.spaces import MultiDiscrete
 from gym.spaces import Tuple
 from gym.wrappers.time_limit import TimeLimit
 
+from cheetahgym.envs.cheetah_mpc_env import CheetahMPCEnv
 
 def num_space_dim(space):
     if isinstance(space, Box):
@@ -44,7 +45,11 @@ def make_vec_env(env_id, num_envs, seed=1, no_timeout=False,
 
     def make_env(env_id, rank, seed, no_timeout, env_kwargs):
         def _thunk():
-            env = gym.make(env_id, **env_kwargs)
+            from gym import envs
+            print(envs.registry.all())
+
+            #env = gym.make(env_id, **env_kwargs)
+            env = CheetahMPCEnv(**env_kwargs)
             if no_timeout:
                 env = NoTimeOutEnv(env)
             env.seed(seed + rank)
