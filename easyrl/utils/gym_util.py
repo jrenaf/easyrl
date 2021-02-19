@@ -46,7 +46,7 @@ def make_vec_env(env_id, num_envs, seed=1, no_timeout=False,
     def make_env(env_id, rank, seed, no_timeout, env_kwargs):
         def _thunk():
             from gym import envs
-            print(envs.registry.all())
+            #print(envs.registry.all())
 
             try:
                 env = gym.make(env_id, **env_kwargs)
