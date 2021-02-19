@@ -48,8 +48,18 @@ def make_vec_env(env_id, num_envs, seed=1, no_timeout=False,
             from gym import envs
             print(envs.registry.all())
 
-            #env = gym.make(env_id, **env_kwargs)
-            env = CheetahMPCEnv(**env_kwargs)
+            try:
+                env = gym.make(env_id, **env_kwargs)
+            except Exception:
+                if env_id == "CheetahMPCEnv-v0":
+                    env = CheetahMPCEnv(**env_kwargs)
+                elif env_id == "CheetahRSSPMTGEnv-v0":
+                    env = CheetahRSSPMTGEnv-v0(**env_kwargs)
+                elif env_id == "CheetahRSSFlatEnv-v0":
+                    env = CheetahRSSFlatEnv-v0(**env_kwargs)
+                else:
+                    print(f"ENVIRONMENT {env_id} NOT REGISTERED")
+                    raise Exception
             if no_timeout:
                 env = NoTimeOutEnv(env)
             env.seed(seed + rank)
