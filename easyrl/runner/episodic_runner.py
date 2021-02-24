@@ -43,6 +43,7 @@ class EpisodicRunner(BasicRunner):
                 # get render images at the same time step as ob
                 imgs = deepcopy(env.get_images())
 
+
             action, action_info = self.agent.get_action(ob,
                                                         sample=sample,
                                                         **action_kwargs)

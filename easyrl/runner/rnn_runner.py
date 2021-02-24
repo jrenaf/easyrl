@@ -97,7 +97,10 @@ class RNNRunner(BasicRunner):
             if get_last_val and not evaluation and t == time_steps - 1:
                 last_val, _ = self.agent.get_val(traj[-1].next_ob_raw,
                                                  hidden_state=hidden_state)
-                traj.add_extra('last_val', torch_to_np(last_val))
+                if last_val is not None:
+                  traj.add_extra('last_val', torch_to_np(last_val))
+                else:
+                  traj.add_extra('last_val', None)
             hidden_state = self.check_hidden_state(hidden_state, done=done)
         self.obs = ob if not evaluation else None
         self.hidden_states = hidden_state.detach() if not evaluation else None

@@ -51,7 +51,10 @@ class VecNormalize(VecEnvWrapper):
                               -self.clipob, self.clipob)
                 state_scale = np.clip((obs['state'] - self.state_rms.mean) / np.sqrt(self.state_rms.var + self.epsilon),
                               -self.clipob, self.clipob)
-                return {'ob': obs_scale, 'state': state_scale}
+                ob_dict = {'ob': obs_scale, 'state': state_scale}
+                if 'expert_ob' in obs: ob_dict['expert_ob'] = obs['expert_state']
+                if 'expert_state' in obs: ob_dict['expert_state'] = obs['expert_state']
+                return ob_dict
             else:
                 if self.training:
                     self.ob_rms.update(obs)
