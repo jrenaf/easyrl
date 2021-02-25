@@ -45,9 +45,9 @@ class VecNormalize(VecEnvWrapper):
         return obs, rews, news, infos
 
     def _obfilt(self, obs):
-        print("compare in obfilt")
-        print(obs["expert_state"][0:3, 0])
-        print(obs["state"][0:3, 0])
+        #print("compare in obfilt")
+        #print(obs["expert_state"][0:3, 0])
+        #print(obs["state"][0:3, 0])
 
 
         if self.ob_rms:
@@ -62,14 +62,16 @@ class VecNormalize(VecEnvWrapper):
                 ob_dict = {'ob': obs_scale, 'state': state_scale}
                 if 'expert_ob' in obs: 
                     if self.expert_ob_rms is not None:
-                        ob_dict['expert_ob'] = np.clip(obs['expert_ob'] - self.expert_ob_rms.mean) / np.sqrt(self.expert_ob_rms.var + self.epsilon)
-                        print("apply expert scaling!")
+                        ob_dict['expert_ob'] = np.clip((obs['expert_ob'] - self.expert_ob_rms.mean) / np.sqrt(self.expert_ob_rms.var + self.epsilon),
+                               -self.clipob, self.clipob)
+                        #print("apply expert scaling!")
                     else:
                         ob_dict['expert_ob'] = obs['expert_ob']
                 if 'expert_state' in obs: 
                     if self.expert_state_rms is not None:
-                        ob_dict['expert_state'] = np.clip(obs['expert_state'] - self.expert_state_rms.mean) / np.sqrt(self.expert_state_rms.var + self.epsilon)
-                        print("apply expert scaling!")
+                        ob_dict['expert_state'] = np.clip((obs['expert_state'] - self.expert_state_rms.mean) / np.sqrt(self.expert_state_rms.var + self.epsilon),
+                               -self.clipob, self.clipob)
+                        #print("apply expert scaling!")
                     else:
                         ob_dict['expert_state'] = obs['expert_state']
                 return ob_dict
