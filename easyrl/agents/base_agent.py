@@ -21,3 +21,8 @@ class BaseAgent:
     def load_env(self, save_dir):
         if isinstance(self.env, VecNormalize):
             load_vec_normalized_env(self.env, save_dir)
+
+    def load_env_expert(self, expert_save_dir):
+        if isinstance(self.env, VecNormalize):
+            load_vec_normalized_env(self.env, expert_save_dir)
+
