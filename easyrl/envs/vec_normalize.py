@@ -19,6 +19,9 @@ class VecNormalize(VecEnvWrapper):
             self.state_rms = RunningMeanStd(shape=self.observation_space['state'].shape) if ob else None
         else:
             self.ob_rms = RunningMeanStd(shape=self.observation_space.shape) if ob else None
+
+        self.expert_state_rms = None
+        self.expert_ob_rms = None
         self.ret_rms = RunningMeanStd(shape=()) if ret else None
         self.clipob = clipob
         self.cliprew = cliprew
@@ -42,6 +45,11 @@ class VecNormalize(VecEnvWrapper):
         return obs, rews, news, infos
 
     def _obfilt(self, obs):
+        print("compare in obfilt")
+        print(obs["expert_state"][0:3, 0])
+        print(obs["state"][0:3, 0])
+
+
         if self.ob_rms:
             if isinstance(self.observation_space, spaces.Dict):
                 if self.training:
@@ -52,8 +60,18 @@ class VecNormalize(VecEnvWrapper):
                 state_scale = np.clip((obs['state'] - self.state_rms.mean) / np.sqrt(self.state_rms.var + self.epsilon),
                               -self.clipob, self.clipob)
                 ob_dict = {'ob': obs_scale, 'state': state_scale}
-                if 'expert_ob' in obs: ob_dict['expert_ob'] = obs['expert_state']
-                if 'expert_state' in obs: ob_dict['expert_state'] = obs['expert_state']
+                if 'expert_ob' in obs: 
+                    if self.expert_ob_rms is not None:
+                        ob_dict['expert_ob'] = np.clip(obs['expert_ob'] - self.expert_ob_rms.mean) / np.sqrt(self.expert_ob_rms.var + self.epsilon)
+                        print("apply expert scaling!")
+                    else:
+                        ob_dict['expert_ob'] = obs['expert_ob']
+                if 'expert_state' in obs: 
+                    if self.expert_state_rms is not None:
+                        ob_dict['expert_state'] = np.clip(obs['expert_state'] - self.expert_state_rms.mean) / np.sqrt(self.expert_state_rms.var + self.epsilon)
+                        print("apply expert scaling!")
+                    else:
+                        ob_dict['expert_state'] = obs['expert_state']
                 return ob_dict
             else:
                 if self.training:
@@ -90,3 +108,6 @@ class VecNormalize(VecEnvWrapper):
                 setattr(self, key, data[key])
             else:
                 print(f'Warning: {key} does not exist in data.')
+
+        setattr(self, 'expert_state_rms', data['state_rms'])
+        setattr(self, 'expert_ob_rms', data['ob_rms'])
