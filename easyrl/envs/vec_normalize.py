@@ -53,7 +53,7 @@ class VecNormalize(VecEnvWrapper):
         if self.ob_rms:
             if isinstance(self.observation_space, spaces.Dict):
                 if self.training:
-                    #print("update rms in vecnorm")
+                    print("update rms in vecnorm")
                     self.ob_rms.update(obs['ob'])
                     self.state_rms.update(obs['state'])
                 obs_scale = np.clip((obs['ob'] - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon),
@@ -103,6 +103,8 @@ class VecNormalize(VecEnvWrapper):
         return data
 
     def set_states(self, data):
+        #print("SET STATES")
+
         assert isinstance(data, dict)
         keys = ['ob_rms', 'state_rms', 'ret_rms', 'clipob',
                 'cliprew', 'gamma', 'epsilon']
@@ -129,3 +131,5 @@ class VecNormalize(VecEnvWrapper):
         import copy
         setattr(self, 'expert_state_rms', copy.deepcopy(data['state_rms']))
         setattr(self, 'expert_ob_rms', copy.deepcopy(data['ob_rms']))
+
+

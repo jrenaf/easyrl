@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import gym
 from easyrl.envs.vec_normalize import VecNormalize
 from easyrl.utils.gym_util import save_vec_normalized_env
-from easyrl.utils.gym_util import load_vec_normalized_env
+from easyrl.utils.gym_util import load_vec_normalized_env, load_vec_normalized_env_expert
 
 @dataclass
 class BaseAgent:
@@ -24,5 +24,5 @@ class BaseAgent:
 
     def load_env_expert(self, expert_save_dir):
         if isinstance(self.env, VecNormalize):
-            load_vec_normalized_env(self.env, expert_save_dir)
+            load_vec_normalized_env_expert(self.env, expert_save_dir)
 
