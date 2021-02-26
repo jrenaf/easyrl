@@ -82,7 +82,6 @@ class ShmemVecEnv(VecEnv):
             self.step_wait()
         if cfgs is None:
             for pipe in self.parent_pipes:
-                print('send reset')
                 pipe.send(('reset', None))
         else:
             for pipe, cfg in zip(self.parent_pipes, cfgs):
