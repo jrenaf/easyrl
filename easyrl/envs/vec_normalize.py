@@ -53,7 +53,7 @@ class VecNormalize(VecEnvWrapper):
         if self.ob_rms:
             if isinstance(self.observation_space, spaces.Dict):
                 if self.training:
-                    print("update rms in vecnorm")
+                    #print("update rms in vecnorm")
                     self.ob_rms.update(obs['ob'])
                     self.state_rms.update(obs['state'])
                 obs_scale = np.clip((obs['ob'] - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon),
