@@ -1,5 +1,4 @@
 import time
-from collections import deque
 from itertools import chain
 from itertools import count
 
@@ -8,16 +7,17 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from easyrl.configs.ppo_config import ppo_cfg
+from easyrl.configs import cfg
 from easyrl.engine.basic_engine import BasicEngine
 from easyrl.utils.common import get_list_stats
 from easyrl.utils.common import save_traj
 from easyrl.utils.gae import cal_gae
-from easyrl.utils.rl_logger import TensorboardLogger
 from easyrl.utils.torch_util import EpisodeDataset
+from easyrl.utils.torch_util import torch_to_np
 
 
 class PPOEngine(BasicEngine):
+    '''
     def __init__(self, agent, runner):
         super().__init__(agent=agent,
                          runner=runner)
@@ -44,40 +44,57 @@ class PPOEngine(BasicEngine):
             train_log_info = self.train_once(traj)
             if iter_t % ppo_cfg.eval_interval == 0:
                 eval_log_info, _ = self.eval()
+    '''
+    def train(self):
+        for iter_t in count():
+            if iter_t % cfg.alg.eval_interval == 0:
+                det_log_info, _ = self.eval(eval_num=cfg.alg.test_num,
+                                            sample=False, smooth=True)
+                sto_log_info, _ = self.eval(eval_num=cfg.alg.test_num,
+                                            sample=True, smooth=False)
+
+                det_log_info = {f'det/{k}': v for k, v in det_log_info.items()}
+                sto_log_info = {f'sto/{k}': v for k, v in sto_log_info.items()}
+                eval_log_info = {**det_log_info, **sto_log_info}
                 self.agent.save_model(is_best=self._eval_is_best,
                                       step=self.cur_step)
             else:
                 eval_log_info = None
-            if iter_t % ppo_cfg.log_interval == 0:
+            traj, rollout_time = self.rollout_once(sample=True,
+                                                   get_last_val=True,
+                                                   time_steps=cfg.alg.steps_between_policyupdate)
+            train_log_info = self.train_once(traj)
+            if iter_t % cfg.alg.log_interval == 0:
                 train_log_info['train/rollout_time'] = rollout_time
                 if eval_log_info is not None:
                     train_log_info.update(eval_log_info)
-                if ppo_cfg.linear_decay_lr:
+                if cfg.alg.linear_decay_lr:
                     train_log_info.update(self.agent.get_lr())
-                if ppo_cfg.linear_decay_clip_range:
-                    train_log_info.update(dict(clip_range=ppo_cfg.clip_range))
+                if cfg.alg.linear_decay_clip_range:
+                    train_log_info.update(dict(clip_range=cfg.alg.clip_range))
                 scalar_log = {'scalar': train_log_info}
                 self.tf_logger.save_dict(scalar_log, step=self.cur_step)
-            if self.cur_step > ppo_cfg.max_steps:
+            if self.cur_step > cfg.alg.max_steps:
                 break
-            if ppo_cfg.linear_decay_lr:
+            if cfg.alg.linear_decay_lr:
                 self.agent.decay_lr()
-            if ppo_cfg.linear_decay_clip_range:
+            if cfg.alg.linear_decay_clip_range:
                 self.agent.decay_clip_range()
 
     @torch.no_grad()
-    def eval(self, render=False, save_eval_traj=False, eval_num=1, sleep_time=0, smooth=True, no_tqdm=None):
+    def eval(self, render=False, save_eval_traj=False, eval_num=1,
+             sleep_time=0, sample=True, smooth=True, no_tqdm=None):
         time_steps = []
         rets = []
         lst_step_infos = []
         if no_tqdm:
             disable_tqdm = bool(no_tqdm)
         else:
-            disable_tqdm = not ppo_cfg.test
+            disable_tqdm = not cfg.alg.test
         for idx in tqdm(range(eval_num), disable=disable_tqdm):
-            traj, _ = self.rollout_once(time_steps=ppo_cfg.episode_steps,
+            traj, _ = self.rollout_once(time_steps=cfg.alg.episode_steps,
                                         return_on_done=True,
-                                        sample=ppo_cfg.sample_action,
+                                        sample=cfg.alg.sample_action and sample,
                                         render=render,
                                         sleep_time=sleep_time,
                                         render_image=save_eval_traj,
@@ -91,7 +108,7 @@ class PPOEngine(BasicEngine):
                 lst_step_infos.append(infos[tsps[ej] - 1][ej])
             time_steps.extend(tsps)
             if save_eval_traj:
-                save_traj(traj, ppo_cfg.eval_dir)
+                save_traj(traj, cfg.alg.eval_dir)
 
         raw_traj_info = {'return': rets,
                          'episode_length': time_steps,
@@ -130,7 +147,7 @@ class PPOEngine(BasicEngine):
         self.cur_step += traj.total_steps
         rollout_dataloader = self.traj_preprocess(traj)
         optim_infos = []
-        for oe in range(ppo_cfg.opt_epochs):
+        for oe in range(cfg.alg.opt_epochs):
             for batch_ndx, batch_data in enumerate(rollout_dataloader):
                 optim_info = self.agent.optimize(batch_data)
                 optim_infos.append(optim_info)
@@ -142,11 +159,12 @@ class PPOEngine(BasicEngine):
         log_prob = np.array([ainfo['log_prob'] for ainfo in action_infos])
         adv = self.cal_advantages(traj)
         ret = adv + vals
-        if ppo_cfg.normalize_adv:
+        if cfg.alg.normalize_adv:
             adv = adv.astype(np.float64)
             adv = (adv - np.mean(adv)) / (np.std(adv) + 1e-8)
         data = dict(
             ob=traj.obs,
+            state=traj.states,
             action=traj.actions,
             ret=ret,
             adv=adv,
@@ -155,7 +173,7 @@ class PPOEngine(BasicEngine):
         )
         rollout_dataset = EpisodeDataset(**data)
         rollout_dataloader = DataLoader(rollout_dataset,
-                                        batch_size=ppo_cfg.batch_size,
+                                        batch_size=cfg.alg.batch_size,
                                         shuffle=True)
         return rollout_dataloader
 
@@ -164,8 +182,8 @@ class PPOEngine(BasicEngine):
         action_infos = traj.action_infos
         vals = np.array([ainfo['val'] for ainfo in action_infos])
         last_val = traj.extra_data['last_val']
-        adv = cal_gae(gamma=ppo_cfg.rew_discount,
-                      lam=ppo_cfg.gae_lambda,
+        adv = cal_gae(gamma=cfg.alg.rew_discount,
+                      lam=cfg.alg.gae_lambda,
                       rewards=rewards,
                       value_estimates=vals,
                       last_value=last_val,
@@ -182,6 +200,36 @@ class PPOEngine(BasicEngine):
             log_info['rollout_action/' + sk] = sv
         log_info['optim_time'] = t1 - self.optim_stime
         log_info['rollout_steps_per_iter'] = traj.total_steps
+
+        # log infos
+        dones = traj.dones
+        for key in traj.infos[0][0].keys():
+            #print("key", key)
+            if "final" in key:
+                all_finals = []
+                finals = np.array([[step_data.info[i][key] for i in range(len(step_data.info))] for step_data in traj.traj_data])
+                epfinals = []
+                for i in range(dones.shape[1]):
+                    di = dones[:, i]
+                    if not np.any(di):
+                        epfinals.append(finals[-1, i])
+                    else:
+                        done_idx = np.where(di)[0]
+                        t = 0
+                        for idx in done_idx:
+                            epfinals.append(finals[idx, i])
+                            t = idx + 1
+                info_list = epfinals
+            else:
+                info_list = [tuple([info.get(key, 0) for info in infos]) for infos in traj.infos]
+            #print("info list[0]", info_list[0])
+            try:
+                info_stats = get_list_stats(info_list)
+                for sk, sv in info_stats.items():
+                    log_info['rollout_{}/'.format(key) + sk] = sv
+            except Exception:
+                continue
+
         ep_returns = list(chain(*traj.episode_returns))
         for epr in ep_returns:
             self.train_ep_return.append(epr)

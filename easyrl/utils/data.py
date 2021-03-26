@@ -9,16 +9,19 @@ import numpy as np
 
 @dataclass
 class StepData:
+    ob_raw: Any = None
     ob: Any = None
     state: Any = None
     action: Any = None
     # store action infomation such as log probability, entropy
-    action_info: Dict = None
+    action_info: Any = None
+    next_ob_raw: Any = None
     next_ob: Any = None
     next_state: Any = None
-    reward: float = None
-    done: bool = None
-    info: Dict = None
+    reward: Any = None
+    done: Any = None
+    info: Any = None
+    extra: Any = None
 
     def __post_init__(self):
         """
@@ -26,8 +29,10 @@ class StepData:
         then store them into ob and state separately
         """
         if isinstance(self.ob, dict):
+            self.ob_raw = self.ob
             self.ob, self.state = self.dict_ob_state(self.ob)
         if isinstance(self.next_ob, dict):
+            self.next_ob_raw = self.next_ob
             self.next_ob, self.next_state = self.dict_ob_state(self.next_ob)
 
     def dict_ob_state(self, ob):
@@ -92,6 +97,11 @@ class Trajectory:
     def rewards(self):
         return np.array([step_data.reward for step_data in self.traj_data])
 
+
+    @property
+    def step_extras(self):
+        return np.array([step_data.extra for step_data in self.traj_data])
+
     @property
     def raw_rewards(self):
         if len(self.traj_data) > 0 and 'raw_reward' in self.traj_data[0].info[0]:
@@ -115,7 +125,7 @@ class Trajectory:
 
     @property
     def total_steps(self):
-        return self.traj_data[0].action.shape[0] * len(self.traj_data)
+        return len(self.traj_data[0].action) * len(self.traj_data)
 
     @property
     def num_envs(self):
@@ -159,6 +169,32 @@ class Trajectory:
                     t = idx + 1
             all_epr.append(epr)
         return all_epr
+
+    @property
+    def episode_steps(self):
+        """
+        return the number of steps in each episode
+
+        Returns:
+            list: a list of length-num_envs,
+            each element in this list is a list of # of steps in an episode
+
+        """
+        all_epl = []
+        dones = self.dones
+        for i in range(dones.shape[1]):
+            epl = []
+            di = dones[:, i]
+
+            if not np.any(di):
+                epl.append(di.shape[0])
+            else:
+                di = np.insert(di, 0, 1)
+                done_idx = np.where(di)[0]
+                leng = np.diff(done_idx)
+                epl.extend(leng.tolist())
+            all_epl.append(epl)
+        return all_epl
 
     def pop(self):
         """

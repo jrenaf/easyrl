@@ -1,4 +1,6 @@
+import importlib
 import json
+import numbers
 import pickle as pkl
 import random
 import shutil
@@ -8,7 +10,7 @@ import cv2
 import git
 import numpy as np
 import torch
-
+import yaml
 from easyrl.utils.rl_logger import logger
 
 
@@ -16,13 +18,44 @@ def set_random_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
     random.seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
+def module_available(module_path: str) -> bool:
+    """Testing if given module is avalaible in your env.
+
+    Copied from https://github.com/PyTorchLightning/pytorch-lightning/blob/master/pytorch_lightning/utilities/__init__.py.
+
+    >>> module_available('os')
+    True
+    >>> module_available('bla.bla')
+    False
+    """
+    try:
+        mods = module_path.split('.')
+        assert mods, 'nothing given to test'
+        # it has to be tested as per partets
+        for i in range(len(mods)):
+            module_path = '.'.join(mods[:i + 1])
+            if importlib.util.find_spec(module_path) is None:
+                return False
+        return True
+    except AttributeError:
+        return False
+
+
+def list_to_numpy(data, expand_dims=None):
+    if isinstance(data, numbers.Number):
+        data = np.array([data])
+    else:
+        data = np.array(data)
+    if expand_dims is not None:
+        data = np.expand_dims(data, axis=expand_dims)
+    return data
 
 
 def save_traj(traj, save_dir):
-    if isinstance(save_dir, str):
-        save_dir = Path(save_dir)
+    save_dir = pathlib_file(save_dir)
     if not save_dir.exists():
         Path.mkdir(save_dir, parents=True)
     save_state = traj[0].state is not None
@@ -80,8 +113,7 @@ def save_traj(traj, save_dir):
 
 
 def save_images(images, save_dir):
-    if isinstance(save_dir, str):
-        save_dir = Path(save_dir)
+    save_dir = pathlib_file(save_dir)
     if save_dir.exists():
         shutil.rmtree(save_dir, ignore_errors=True)
     Path.mkdir(save_dir, parents=True)
@@ -103,8 +135,7 @@ def convert_imgs_to_video(images, video_file, fps=20):
 
 
 def save_to_json(data, file_name):
-    if isinstance(file_name, str):
-        file_name = Path(file_name)
+    file_name = pathlib_file(file_name)
     if not file_name.parent.exists():
         Path.mkdir(file_name.parent, parents=True)
     with file_name.open('w') as f:
@@ -112,16 +143,29 @@ def save_to_json(data, file_name):
 
 
 def load_from_json(file_name):
-    if isinstance(file_name, str):
-        file_name = Path(file_name)
+    file_name = pathlib_file(file_name)
     with file_name.open('r') as f:
         data = json.load(f)
     return data
 
 
+def load_from_yaml(file_name):
+    file_name = pathlib_file(file_name)
+    with file_name.open('r') as f:
+        data = yaml.load(f, Loader=yaml.FullLoader)
+    return data
+
+
+def save_to_yaml(data, file_name):
+    file_name = pathlib_file(file_name)
+    if not file_name.parent.exists():
+        Path.mkdir(file_name.parent, parents=True)
+    with file_name.open('w') as f:
+        yaml.dump(data, f, default_flow_style=False)
+
+
 def save_to_pickle(data, file_name):
-    if isinstance(file_name, str):
-        file_name = Path(file_name)
+    file_name = pathlib_file(file_name)
     if not file_name.parent.exists():
         Path.mkdir(file_name.parent, parents=True)
     with file_name.open('wb') as f:
@@ -129,11 +173,19 @@ def save_to_pickle(data, file_name):
 
 
 def load_from_pickle(file_name):
-    if isinstance(file_name, str):
-        file_name = Path(file_name)
+    file_name = pathlib_file(file_name)
     with file_name.open('rb') as f:
         data = pkl.load(f)
     return data
+
+
+def pathlib_file(file_name):
+    if isinstance(file_name, str):
+        file_name = Path(file_name)
+    elif not isinstance(file_name, Path):
+        raise TypeError(f'Please check the type of '
+                        f'the filename:{file_name}')
+    return file_name
 
 
 def tile_images(img_nhwc):
@@ -163,6 +215,8 @@ def linear_decay_percent(epoch, total_epochs):
 
 
 def get_list_stats(data):
+    if len(data) < 1:
+        return dict()
     min_data = np.amin(data)
     max_data = np.amax(data)
     mean_data = np.mean(data)
@@ -214,6 +268,14 @@ class RunningMeanStd:
     def update_from_moments(self, batch_mean, batch_var, batch_count):
         self.mean, self.var, self.count = update_mean_var_count_from_moments(
             self.mean, self.var, self.count, batch_mean, batch_var, batch_count)
+
+    def get_states(self):
+        return self.mean, self.var, self.count
+
+    def set_states(self, mean, var, count):
+        self.mean = mean
+        self.var = var
+        self.count = count
 
 
 def update_mean_var_count_from_moments(mean, var, count, batch_mean, batch_var, batch_count):
