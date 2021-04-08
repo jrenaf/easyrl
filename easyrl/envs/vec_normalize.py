@@ -23,6 +23,7 @@ class VecNormalize(VecEnvWrapper):
         self.expert_state_rms = None
         self.expert_ob_rms = None
         self.ret_rms = RunningMeanStd(shape=()) if ret else None
+        self.freeze_ob_rms = False
         self.clipob = clipob
         self.cliprew = cliprew
         self.ret = np.zeros(self.num_envs)
@@ -54,7 +55,8 @@ class VecNormalize(VecEnvWrapper):
             if isinstance(self.observation_space, spaces.Dict):
                 if self.training:
                     #print("update rms in vecnorm")
-                    self.ob_rms.update(obs['ob'])
+                    if not self.freeze_ob_rms:
+                        self.ob_rms.update(obs['ob'])
                     self.state_rms.update(obs['state'])
                 obs_scale = np.clip((obs['ob'] - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon),
                               -self.clipob, self.clipob)
@@ -114,9 +116,19 @@ class VecNormalize(VecEnvWrapper):
             else:
                 print(f'Warning: {key} does not exist in data.')
 
-        import copy
-        #setattr(self, 'expert_state_rms', copy.deepcopy(data['state_rms']))
-        #etattr(self, 'expert_ob_rms', copy.deepcopy(data['ob_rms']))
+
+    def set_and_freeze_ob_rms(self, data):
+        #print("SET STATES")
+
+        assert isinstance(data, dict)
+        keys = ['ob_rms']
+        for key in keys:
+            if key in data:
+                setattr(self, key, data[key])
+            else:
+                print(f'Warning: {key} does not exist in data.')
+
+        self.freeze_ob_rms = True
 
     def set_states_bc(self, data):
         assert isinstance(data, dict)
