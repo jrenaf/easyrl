@@ -100,3 +100,6 @@ class DummyVecEnv(VecEnv):
             return self.envs[0].render(mode=mode)
         else:
             return super().render(mode=mode)
+    
+    def __getattr__(self, attrb):
+        return getattr(self.envs[0], attrb)

@@ -1,7 +1,7 @@
 import importlib
 import json
 import numbers
-import pickle as pkl
+import pickle5 as pkl
 import random
 import shutil
 from pathlib import Path
