@@ -19,8 +19,11 @@ class BaseAgent:
             save_vec_normalized_env(self.env, save_dir)
 
     def load_env(self, save_dir):
+        print("load env", isinstance(self.env, VecNormalize))
         if isinstance(self.env, VecNormalize):
+            #input("load student")
             load_vec_normalized_env(self.env, save_dir)
+# <<<<<<< HEAD
         elif hasattr(self.env, "_gym_env") and isinstance(self.env._gym_env, VecNormalize):
             load_vec_normalized_env(self.env._gym_env, save_dir)
 
@@ -29,4 +32,15 @@ class BaseAgent:
             load_vec_normalized_env_expert(self.env, expert_save_dir)
         elif hasattr(self.env, "_gym_env") and isinstance(self.env._gym_env, VecNormalize):
             load_vec_normalized_env(self.env._gym_env, save_dir)
+# =======
+#         else:
+#             print("ERROR: Failed to load, not a VecNormalize environment! Did you wrap it??")
+
+#     def load_env_expert(self, expert_save_dir):
+#         if isinstance(self.env, VecNormalize):
+#             #input("load expert")
+#             load_vec_normalized_env_expert(self.env, expert_save_dir)
+#         else:
+#             print("ERROR: Failed to load, not a VecNormalize environment! Did you wrap it??")
+# >>>>>>> asdf
 

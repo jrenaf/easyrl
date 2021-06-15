@@ -113,6 +113,7 @@ def load_vec_normalized_env(env, save_dir):
     assert isinstance(env, VecNormalize)
     data = load_from_pickle(save_file)
     env.set_states(data)
+    print("OK!")
 
 def load_vec_normalized_env_expert(env, expert_save_dir):
     save_dir = pathlib_file(expert_save_dir)
@@ -120,6 +121,7 @@ def load_vec_normalized_env_expert(env, expert_save_dir):
     assert isinstance(env, VecNormalize)
     data = load_from_pickle(save_file)
     env.set_states_bc(data)
+    print("OK2!")
 
 def get_true_done(done, info):
     return done and not info.get('TimeLimit.truncated', False)
