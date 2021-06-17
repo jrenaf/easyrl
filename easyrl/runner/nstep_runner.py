@@ -90,7 +90,10 @@ class EpisodicRunner(BasicRunner):
         if get_last_val and not evaluation:
             #print(traj[-1].next_ob_raw)
             last_val = self.agent.get_val(traj[-1].next_ob_raw)
-            traj.add_extra('last_val', torch_to_np(last_val))
+            if last_val is not None:
+                  traj.add_extra('last_val', torch_to_np(last_val))
+                else:
+                  traj.add_extra('last_val', None)
             
         self.obs = ob if not evaluation else None
         return traj
