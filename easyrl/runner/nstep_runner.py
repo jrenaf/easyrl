@@ -49,7 +49,6 @@ class EpisodicRunner(BasicRunner):
         else:
             all_dones = None
         for t in range(time_steps):
-            print(t)
             if render:
                 env.render()
                 if sleep_time > 0:
