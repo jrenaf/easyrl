@@ -14,7 +14,7 @@ class EpisodicRunner(BasicRunner):
     @torch.no_grad()
     def __call__(self, time_steps, sample=True, evaluation=False,
                  return_on_done=False, render=False, render_image=False,
-                 sleep_time=0, reset_kwargs=None, action_kwargs=None):
+                 sleep_time=0, reset_kwargs=None, action_kwargs=None, get_last_val=False):
         traj = Trajectory()
         if reset_kwargs is None:
             reset_kwargs = {}
@@ -34,6 +34,8 @@ class EpisodicRunner(BasicRunner):
         ob = deepcopy(ob)
         if return_on_done:
             all_dones = np.zeros(env.num_envs, dtype=bool)
+        else:
+            all_dones = None
         for t in range(time_steps):
             if render:
                 env.render()
@@ -69,8 +71,11 @@ class EpisodicRunner(BasicRunner):
             traj.add(sd)
             if return_on_done and np.all(all_dones):
                 break
-        if not evaluation:
+        if get_last_val and not evaluation:
             #print("next_ob:", traj[-1].next_ob)
             last_val = self.agent.get_val(traj[-1].next_ob_raw)
-            traj.add_extra('last_val', torch_to_np(last_val))
+            if last_val is not None:
+                traj.add_extra('last_val', torch_to_np(last_val))
+            else:
+                traj.add_extra('last_val', None)
         return traj
