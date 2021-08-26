@@ -33,8 +33,8 @@ class RNNRunner(BasicRunner):
         else:
             env = self.train_env
         # In RL^2, we should always reset in the begining of a rollout
-        if self.obs is None or reset_first or evaluation:
-            self.reset(**reset_kwargs)
+        #if self.obs is None or reset_first or evaluation:
+        self.reset(**reset_kwargs)
         ob = self.obs
         hidden_state = self.hidden_states
         # this is critical for some environments depending
