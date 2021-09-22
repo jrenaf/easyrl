@@ -25,8 +25,9 @@ def cfg_from_cmd(cfg, parser=None):
         except argparse.ArgumentError:
             pass
 
-    args = parser.parse_args()
-    default_args = parser.parse_args([])
+    args, unknown = parser.parse_known_args()
+    default_args, unknown = parser.parse_known_args([])
+    input(args)
     args_dict = vars(args)
     default_args_dict = vars(default_args)
     diff_hps = {key: val for key, val in args_dict.items() if
