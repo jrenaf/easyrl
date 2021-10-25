@@ -71,7 +71,6 @@ class ShmemVecEnv(VecEnv):
         self.viewer = None
 
     def reset(self, cfgs=None):
-        print('reset')
         if cfgs is not None:
             if not (isinstance(cfgs, list) and len(cfgs) == self.num_envs):
                 raise TypeError('If the reset configurations are given,'
