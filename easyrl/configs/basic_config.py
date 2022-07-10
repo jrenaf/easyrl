@@ -17,6 +17,7 @@ class BasicConfig:
     save_dir_root: str = None
     eval_interval: int = 100
     log_interval: int = 10
+    deque_size: int = 100
     weight_decay: float = 0.00
     max_grad_norm: float = None
     batch_size: int = 256
@@ -114,7 +115,7 @@ class BasicConfig:
         Path.mkdir(self.log_dir, parents=True)
         hp_file = self.data_dir.joinpath('hp.json')
         hps = self.__dict__
-        hps['git_info'] = get_git_infos(self.root_dir)
+        # hps['git_info'] = get_git_infos(self.root_dir)
         save_to_json(hps, hp_file)
 
     def create_eval_dir(self):
