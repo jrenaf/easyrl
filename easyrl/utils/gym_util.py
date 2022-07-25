@@ -4,6 +4,7 @@ import gym
 import numpy as np
 from easyrl.envs.dummy_vec_env import DummyVecEnv
 from easyrl.envs.shmem_vec_env import ShmemVecEnv
+from easyrl.envs.subproc_vec_env import SubprocVecEnv
 from easyrl.envs.timeout import NoTimeOutEnv
 from easyrl.envs.vec_normalize import VecNormalize
 from easyrl.utils.common import load_from_pickle
@@ -65,6 +66,7 @@ def make_vec_env(env_id, num_envs, seed=1, no_timeout=False,
                      env_kwargs) for idx in range(num_envs)]
     if num_envs > 1:
         envs = ShmemVecEnv(envs, context='spawn')
+        # envs = SubprocVecEnv(envs, context='spawn', in_series=1)
     else:
         envs = DummyVecEnv(envs)
     return envs
