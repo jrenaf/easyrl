@@ -1,6 +1,6 @@
-gym>=0.15.3
+gym==0.22.0
 ipython>=7.8.0
-numpy>=1.16.0
+numpy==1.20.0
 matplotlib>=2.2.2
 colorlog>=4.0.2
 cloudpickle
