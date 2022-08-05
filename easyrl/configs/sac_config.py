@@ -7,7 +7,7 @@ from easyrl.configs.basic_config import BasicConfig
 class SACConfig(BasicConfig):
     actor_lr: float = 1e-3
     critic_lr: float = 1e-3
-    warmup_steps: int = 10000
+    warmup_steps: int = 1000
     use_amsgrad: bool = True
     opt_interval: int = 50  # perform optimization every n environment steps
     opt_num: int = 25  # how many optimization loops in every optimization stage

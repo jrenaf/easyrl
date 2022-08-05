@@ -60,7 +60,9 @@ class EpisodicRunner(BasicRunner):
             if random_action:
                 action = env.random_actions()
                 action_info = dict()
+                print("in random_action")
             else:
+                print("not in random_action")
                 action, action_info = self.agent.get_action(ob,
                                                             sample=sample,
                                                             **action_kwargs)

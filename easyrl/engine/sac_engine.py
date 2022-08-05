@@ -31,9 +31,9 @@ class SACEngine(BasicEngine):
             train_log_info = self.train_once()
             if iter_t % cfg.alg.eval_interval == 0:
                 det_log_info, _ = self.eval(eval_num=cfg.alg.test_num,
-                                            sample=False, smooth=True)
+                                            sample=False, smooth=True) # deterministic
                 sto_log_info, _ = self.eval(eval_num=cfg.alg.test_num,
-                                            sample=True, smooth=False)
+                                            sample=True, smooth=False) # stochastic
                 det_log_info = {f'det/{k}': v for k, v in det_log_info.items()}
                 sto_log_info = {f'sto/{k}': v for k, v in sto_log_info.items()}
                 eval_log_info = {**det_log_info, **sto_log_info}
@@ -120,7 +120,9 @@ class SACEngine(BasicEngine):
             sampled_data = Trajectory(traj_data=sampled_data)
             batch_data = dict(
                 obs=sampled_data.obs,
+                states=sampled_data.states,
                 next_obs=sampled_data.next_obs,
+                next_states=sampled_data.next_states,
                 actions=sampled_data.actions,
                 dones=sampled_data.dones,
                 rewards=sampled_data.rewards
@@ -157,18 +159,22 @@ class SACEngine(BasicEngine):
 
     def add_traj_to_memory(self, traj):
         obs = traj.obs
+        states = traj.states
         actions = traj.actions
         next_obs = traj.next_obs
+        next_states = traj.next_states
         rewards = traj.rewards
         dones = traj.dones
         rets = map(lambda x: x.swapaxes(0, 1).reshape(x.shape[0] * x.shape[1],
                                                       *x.shape[2:]),
-                   (obs, actions, next_obs, rewards, dones))
-        obs, actions, next_obs, rewards, dones = rets
+                   (obs, states, actions, next_obs, next_states, rewards, dones))
+        obs, states, actions, next_obs, next_states, rewards, dones = rets
         for i in range(obs.shape[0]):
             sd = StepData(ob=obs[i],
+                          state=states[i],
                           action=actions[i],
                           next_ob=next_obs[i],
+                          next_state=next_states[i],
                           reward=rewards[i],
                           done=dones[i])
             self.agent.memory.append(deepcopy(sd))

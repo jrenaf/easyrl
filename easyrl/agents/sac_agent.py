@@ -82,7 +82,11 @@ class SACAgent(BaseAgent):
     @torch.no_grad()
     def get_action(self, ob, sample=True, *args, **kwargs):
         self.eval_mode()
-        ob = torch_float(ob, device=cfg.alg.device)
+        if type(ob) is dict:
+            ob = {key: torch_float(ob[key], device=cfg.alg.device) for key in ob}
+        else:
+            ob = torch_float(ob, device=cfg.alg.device)
+
         act_dist = self.actor(ob)[0]
         action = action_from_dist(act_dist,
                                   sample=sample)
@@ -92,7 +96,10 @@ class SACAgent(BaseAgent):
     @torch.no_grad()
     def get_val(self, ob, action, tgt=False, first=True, *args, **kwargs):
         self.eval_mode()
-        ob = torch_float(ob, device=cfg.alg.device)
+        if type(ob) is dict:
+            ob = {key: torch_float(ob[key], device=cfg.alg.device) for key in ob}
+        else:
+            ob = torch_float(ob, device=cfg.alg.device)
         action = torch_float(action, device=cfg.alg.device)
         idx = 1 if first else 2
         tgt_suffix = '_tgt' if tgt else ''
@@ -106,16 +113,18 @@ class SACAgent(BaseAgent):
         for key, val in data.items():
             data[key] = torch_float(val, device=cfg.alg.device)
         obs = data['obs']
+        states = data['states']
         actions = data['actions']
         next_obs = data['next_obs']
+        next_states = data['next_states']
         rewards = data['rewards'].unsqueeze(-1)
         dones = data['dones'].unsqueeze(-1)
-        q_info = self.update_q(obs=obs,
+        q_info = self.update_q(obs={"ob": obs, "state": states},
                                actions=actions,
-                               next_obs=next_obs,
+                               next_obs={"ob": next_obs,"state": next_states},
                                rewards=rewards,
                                dones=dones)
-        pi_info = self.update_pi(obs=obs)
+        pi_info = self.update_pi(obs={"ob": obs, "state": states})
         alpha_info = self.update_alpha(pi_info['pi_neg_log_prob'])
         optim_info = {**q_info, **pi_info, **alpha_info}
         optim_info['alpha'] = self.alpha
@@ -127,6 +136,7 @@ class SACAgent(BaseAgent):
         return optim_info
 
     def update_q(self, obs, actions, next_obs, rewards, dones):
+        torch.autograd.set_detect_anomaly(True)
         q1 = self.q1((obs, actions))[0]
         q2 = self.q2((obs, actions))[0]
         with torch.no_grad():
@@ -165,7 +175,7 @@ class SACAgent(BaseAgent):
         new_q2 = self.q2((obs, new_actions))[0]
         new_q = torch.min(new_q1, new_q2)
 
-        loss_pi = (self.alpha * new_log_prob - new_q).mean()
+        loss_pi = (self.alpha * new_log_prob - new_q).mean() # policy loss
         self.q_optimizer.zero_grad()
         self.pi_optimizer.zero_grad()
         loss_pi.backward()
@@ -180,6 +190,7 @@ class SACAgent(BaseAgent):
         return pi_info
 
     def update_alpha(self, pi_neg_log_prob):
+        # adjusting the entorpy temperature
         if cfg.alg.alpha is not None:
             return dict()
         alpha_loss = self.log_alpha.exp() * (pi_neg_log_prob - self.tgt_entropy)
