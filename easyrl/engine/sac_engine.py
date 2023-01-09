@@ -20,16 +20,24 @@ class SACEngine(BasicEngine):
         if len(self.agent.memory) < cfg.alg.warmup_steps:
             self.runner.reset()
             rollout_steps = int((cfg.alg.warmup_steps - len(self.agent.memory)) / cfg.alg.num_envs)
-            traj, _ = self.rollout_once(random_action=True,
+            print("rollout_steps: ", rollout_steps)
+            traj, _, _ = self.rollout_once(random_action=True,
                                         time_steps=rollout_steps)
             self.add_traj_to_memory(traj)
         self.runner.reset()
         for iter_t in count():
-            traj, rollout_time = self.rollout_once(sample=True,
-                                                   time_steps=cfg.alg.opt_interval)
+            traj, rollout_time, _ = self.rollout_once(sample=True,
+                                                   time_steps=cfg.alg.opt_interval) # 50 
             self.add_traj_to_memory(traj)
+            print("*****************************")
+            print("************Train************")
+            print("*****************************")           
             train_log_info = self.train_once()
             if iter_t % cfg.alg.eval_interval == 0:
+                print("*****************************")
+                print("*******Evaluation************")
+                print("*****************************")
+
                 det_log_info, _ = self.eval(eval_num=cfg.alg.test_num,
                                             sample=False, smooth=True) # deterministic
                 sto_log_info, _ = self.eval(eval_num=cfg.alg.test_num,
@@ -42,8 +50,13 @@ class SACEngine(BasicEngine):
             else:
                 eval_log_info = None
             if iter_t % cfg.alg.log_interval == 0:
+                print("*****************************")
+                print("**********Logging************")
+                print("*****************************")
                 train_log_info['train/rollout_time'] = rollout_time
+                print("rollout time:", rollout_time)
                 train_log_info['memory_size'] = len(self.agent.memory)
+                print("memory size:", len(self.agent.memory))
                 if eval_log_info is not None:
                     train_log_info.update(eval_log_info)
                 scalar_log = {'scalar': train_log_info}
@@ -53,7 +66,7 @@ class SACEngine(BasicEngine):
 
     @torch.no_grad()
     def eval(self, render=False, save_eval_traj=False, sample=True,
-             eval_num=1, sleep_time=0, smooth=True, no_tqdm=None):
+             eval_num=1, sleep_time=0, smooth=True, no_tqdm=None, threshold=-np.inf):
         time_steps = []
         rets = []
         lst_step_infos = []
@@ -62,13 +75,14 @@ class SACEngine(BasicEngine):
         else:
             disable_tqdm = not cfg.alg.test
         for idx in tqdm(range(eval_num), disable=disable_tqdm):
-            traj, _ = self.rollout_once(time_steps=cfg.alg.episode_steps,
+            traj, _, terrain_ids = self.rollout_once(time_steps=cfg.alg.episode_steps,
                                         return_on_done=True,
                                         sample=cfg.alg.sample_action and sample,
                                         render=render,
                                         sleep_time=sleep_time,
                                         render_image=save_eval_traj,
-                                        evaluation=True)
+                                        evaluation=True,
+                                        threshold=threshold)
             tsps = traj.steps_til_done.copy().tolist()
             rewards = traj.raw_rewards
             infos = traj.infos
@@ -102,15 +116,15 @@ class SACEngine(BasicEngine):
                 self._best_eval_ret = self.smooth_eval_return
             else:
                 self._eval_is_best = False
-        return log_info, raw_traj_info
+        return log_info, raw_traj_info, terrain_ids
 
     def rollout_once(self, *args, **kwargs):
         t0 = time.perf_counter()
         self.agent.eval_mode()
-        traj = self.runner(**kwargs)
+        traj, hard_terrains = self.runner(**kwargs)
         t1 = time.perf_counter()
         elapsed_time = t1 - t0
-        return traj, elapsed_time
+        return traj, elapsed_time, hard_terrains
 
     def train_once(self):
         self.optim_stime = time.perf_counter()

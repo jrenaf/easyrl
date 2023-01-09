@@ -24,8 +24,10 @@ class EpisodicRunner(BasicRunner):
                  return_on_done=False, render=False, render_image=False,
                  sleep_time=0, reset_first=False,
                  reset_kwargs=None, action_kwargs=None,
-                 random_action=False, get_last_val=False):
+                 random_action=False, get_last_val=False,
+                 threshold=-np.inf):
         traj = Trajectory()
+        hard_terrains = set()
         if reset_kwargs is None:
             reset_kwargs = {}
         if action_kwargs is None:
@@ -34,7 +36,7 @@ class EpisodicRunner(BasicRunner):
             env = self.eval_env
         else:
             env = self.train_env
-        if self.obs is None or reset_first or evaluation:
+        if self.obs is None or evaluation is False:
             self.reset(env=env, **reset_kwargs)
         ob = self.obs
         # this is critical for some environments depending
@@ -60,9 +62,9 @@ class EpisodicRunner(BasicRunner):
             if random_action:
                 action = env.random_actions()
                 action_info = dict()
-                print("in random_action")
+                # print("in random_action")
             else:
-                print("not in random_action")
+                # print("not in random_action")
                 action, action_info = self.agent.get_action(ob,
                                                             sample=sample,
                                                             **action_kwargs)
@@ -84,6 +86,10 @@ class EpisodicRunner(BasicRunner):
                           reward=reward,
                           done=true_done,
                           info=info)
+            if evaluation:
+                hard_ids = self.get_hard_map_id(true_done, reward, info, threshold)
+                hard_terrains.update(hard_ids)
+
             ob = next_ob
             traj.add(sd)
             if return_on_done and np.all(all_dones):
@@ -97,5 +103,5 @@ class EpisodicRunner(BasicRunner):
             else:
                 traj.add_extra('last_val', None)
             
-        self.obs = ob if not evaluation else None
-        return traj
+        self.obs = ob
+        return traj, hard_terrains

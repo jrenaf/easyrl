@@ -56,3 +56,11 @@ class BasicRunner:
             true_next_ob = next_ob
             true_done = done
         return true_next_ob, true_done, all_dones
+    
+    def get_hard_map_id(self, done, reward, info, threshold):
+        hard_ids = set()
+        done_idx = np.argwhere(done).flatten()
+        for i in done_idx:
+            if reward[i] < threshold:
+                hard_ids.add(info[i]['terrain_id'])
+        return hard_ids

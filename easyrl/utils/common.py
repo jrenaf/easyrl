@@ -1,5 +1,6 @@
 import importlib
 import json
+import csv
 import numbers
 import pickle5 as pkl
 import random
@@ -133,6 +134,13 @@ def save_traj(traj, save_dir):
 #         out.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
 #     out.release()
 
+
+def save_to_csv(data, file_name):
+    file_name = pathlib_file(file_name)
+    if not file_name.parent.exists():
+        Path.mkdir(file_name.parent, parents=True)
+    with file_name.open('w') as f:
+        csv.writer(f).writerow(data)
 
 def save_to_json(data, file_name):
     file_name = pathlib_file(file_name)
