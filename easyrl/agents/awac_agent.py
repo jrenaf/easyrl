@@ -1,4 +1,5 @@
 import pickle
+import time
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
@@ -30,7 +31,7 @@ from easyrl.utils.torch_util import unfreeze_model
 
 
 @dataclass
-class SACAgent(BaseAgent):
+class AWACAgent(BaseAgent):
     actor: nn.Module
     env: gym.Env
     memory: Any
@@ -124,7 +125,7 @@ class SACAgent(BaseAgent):
                                next_obs={"ob": next_obs,"state": next_states},
                                rewards=rewards,
                                dones=dones)
-        pi_info = self.update_pi(obs={"ob": obs, "state": states})
+        pi_info = self.update_pi(obs={"ob": obs, "state": states}, actions=actions)
         alpha_info = self.update_alpha(pi_info['pi_neg_log_prob'])
         optim_info = {**q_info, **pi_info, **alpha_info}
         optim_info['alpha'] = self.alpha
@@ -165,21 +166,43 @@ class SACAgent(BaseAgent):
         q_info['q_grad_norm'] = grad_norm
         return q_info
 
-    def update_pi(self, obs):
+    def update_pi(self, obs, actions):
         freeze_model([self.q1, self.q2])
-        act_dist = self.actor(obs)[0]
+        act_dist, act = self.actor(obs)###
+        print("actions:", actions.detach().tolist()[:10], "\n")
         new_actions = action_from_dist(act_dist,
                                        sample=True)
-        # print("new actions:", new_actions.detach().tolist())
+        print("new actions:", new_actions.detach().tolist()[:10], "\n") # this is wrong
         new_log_prob = action_log_prob(new_actions, act_dist).unsqueeze(-1)
         new_q1 = self.q1((obs, new_actions))[0]
         new_q2 = self.q2((obs, new_actions))[0]
-        new_q = torch.min(new_q1, new_q2)
+        v_pi = torch.min(new_q1, new_q2)
 
-        loss_pi = (self.alpha * new_log_prob - new_q).mean() # policy loss
-        # print("new_log_prob:", new_log_prob.detach().tolist()[:10], "\n")
-        # print("loss_pi:", loss_pi, "\n")
-        # print("**************************")
+        old_q1 = self.q1((obs, actions))[0]
+        old_q2 = self.q2((obs, actions))[0]
+        q_pi = torch.min(old_q1, old_q2)
+
+        awac_lambda = 2 
+        adv_pi = q_pi - v_pi
+        # print("q_pi", q_pi.detach().tolist()[:10], "\n")
+        # print("v_pi", v_pi.detach().tolist()[:10], "\n")
+        # print("adv_pi", adv_pi.detach().tolist()[:10], "\n")
+        # print("adv_pi dim", adv_pi.size())
+        #weights = F.softmax(adv_pi / awac_lambda, dim=1) # didn't get exp
+        # weights = torch.clamp_max(
+        #         torch.exp(adv_pi / awac_lambda), 100
+        # )
+        weights = torch.exp(adv_pi)
+        #print("weights", weights.detach().tolist()[:10], "\n")
+        print(len(weights))
+        # print("weights", list(weights.detach()))
+
+        loss_pi = (new_log_prob  * weights.detach()).mean()
+        print("new_log_prob:", new_log_prob.detach().tolist()[:10], "\n")
+        print("loss_pi:", loss_pi, "\n")
+        print("*****************************")
+        #time.sleep(5)
+
         self.q_optimizer.zero_grad()
         self.pi_optimizer.zero_grad()
         loss_pi.backward()
