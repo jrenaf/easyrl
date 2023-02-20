@@ -1,4 +1,5 @@
 import time
+import pickle
 from copy import deepcopy
 from itertools import count
 
@@ -8,15 +9,27 @@ from tqdm import tqdm
 
 from easyrl.configs import cfg
 from easyrl.engine.basic_engine import BasicEngine
+from easyrl.utils.common import load_from_pickle
 from easyrl.utils.common import get_list_stats
 from easyrl.utils.common import save_traj
 from easyrl.utils.data import StepData
 from easyrl.utils.data import Trajectory
+from easyrl.utils.rl_logger import logger
 
 
 class SACEngine(BasicEngine):
 
     def train(self):
+        expert_mem_file = cfg.alg.base_dir.join_path("src/bc/bc_mem.pkl")
+        if expert_mem_file is not None:
+            logger.info(f'Loading the replay buffer from: {expert_mem_file}.')
+            if not expert_mem_file.exists():
+                logger.warning('The replay buffer file is not founded!')
+            else:
+                try:
+                    self.agent.memory = load_from_pickle(expert_mem_file)
+                except pickle.UnpicklingError:
+                    logger.warning('The replay buffer file is corrupted, hence, not loaded!')
         if len(self.agent.memory) < cfg.alg.warmup_steps:
             self.runner.reset()
             rollout_steps = int((cfg.alg.warmup_steps - len(self.agent.memory)) / cfg.alg.num_envs)
