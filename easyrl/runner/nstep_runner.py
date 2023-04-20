@@ -68,7 +68,12 @@ class EpisodicRunner(BasicRunner):
                 action, action_info = self.agent.get_action(ob,
                                                             sample=sample,
                                                             **action_kwargs)
-            next_ob, reward, done, info = env.step(action)
+                
+            try:
+                next_ob, reward, done, info = env.step(action)
+            except:
+                self.reset(env=env, **reset_kwargs)
+                continue
 
             if render_image:
                 for img, inf in zip(imgs, info):
