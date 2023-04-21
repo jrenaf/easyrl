@@ -150,7 +150,14 @@ def _subproc_worker(pipe, parent_pipe, env_fn_wrapper, obs_bufs, obs_shapes, obs
                 else:
                     pipe.send(_write_obs(env.reset(**data)))
             elif cmd == 'step':
-                obs, reward, done, info = env.step(data)
+                try:
+                    obs, reward, done, info = env.step(data)
+                except:
+                    logger.info("ENTER REVIVAL MODE**********************************")
+                    obs = env.reset()
+                    reward = 0
+                    done = True
+                    info = {}
                 if done:
                     info['true_next_ob'] = obs
                     obs = env.reset()
