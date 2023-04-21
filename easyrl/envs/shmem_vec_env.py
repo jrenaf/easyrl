@@ -156,7 +156,7 @@ def _subproc_worker(pipe, parent_pipe, env_fn_wrapper, obs_bufs, obs_shapes, obs
                     logger.info("ENTER REVIVAL MODE**********************************")
                     obs = env.reset()
                     reward = 0
-                    done = True
+                    done = False
                     info = {}
                 if done:
                     info['true_next_ob'] = obs

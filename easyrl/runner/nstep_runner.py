@@ -6,6 +6,7 @@ import torch
 from easyrl.runner.base_runner import BasicRunner
 from easyrl.utils.data import StepData
 from easyrl.utils.data import Trajectory
+from easyrl.utils.rl_logger import logger
 from easyrl.utils.gym_util import get_render_images
 from easyrl.utils.torch_util import torch_to_np
 
@@ -68,12 +69,12 @@ class EpisodicRunner(BasicRunner):
                 action, action_info = self.agent.get_action(ob,
                                                             sample=sample,
                                                             **action_kwargs)
-                
+            logger.info("nstep1")
             try:
                 next_ob, reward, done, info = env.step(action)
             except:
-                self.reset(env=env, **reset_kwargs)
                 continue
+            logger.info("nstep2")
 
             if render_image:
                 for img, inf in zip(imgs, info):
