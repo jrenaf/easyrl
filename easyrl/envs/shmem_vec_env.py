@@ -94,7 +94,15 @@ class ShmemVecEnv(VecEnv):
         self.waiting_step = True
 
     def step_wait(self):
-        outs = [pipe.recv() for pipe in self.parent_pipes]
+        outs = []
+        for pipe in self.parent_pipes:
+            try:
+                out = pipe.recv()
+            except:
+                ob = pipe.send(('reset', None))
+                out = (ob, 0 , True, {})
+            outs.append(out)
+        # outs = [pipe.recv() for pipe in self.parent_pipes]
         self.waiting_step = False
         obs, rews, dones, infos = zip(*outs)
         return self._decode_obses(obs), np.array(rews), np.array(dones), infos

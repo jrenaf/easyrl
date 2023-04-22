@@ -73,6 +73,8 @@ class EpisodicRunner(BasicRunner):
             try:
                 next_ob, reward, done, info = env.step(action)
             except:
+                logger.info("in exception")
+                ob = env.reset(**reset_kwargs)
                 continue
             logger.info("nstep2")
 
